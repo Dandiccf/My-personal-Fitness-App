@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  background: #07090c;
+  color: #eef0f3;
+}
+
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+
+@layer components {
+  .card {
+    @apply bg-ink-800/80 backdrop-blur border border-white/5 rounded-2xl shadow-card;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-4 font-semibold select-none transition active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-accent-500 text-ink-900 hover:bg-accent-400;
+  }
+  .btn-ghost {
+    @apply btn bg-white/5 text-ink-100 hover:bg-white/10;
+  }
+  .btn-danger {
+    @apply btn bg-danger-500/15 text-danger-500 hover:bg-danger-500/25;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium bg-white/5 text-ink-200 border border-white/5;
+  }
+  .chip-accent {
+    @apply chip bg-accent-500/15 text-accent-400 border-accent-500/20;
+  }
+  .chip-warn {
+    @apply chip bg-warn-500/15 text-warn-500 border-warn-500/20;
+  }
+  .chip-danger {
+    @apply chip bg-danger-500/15 text-danger-500 border-danger-500/20;
+  }
+  .input {
+    @apply w-full rounded-xl bg-ink-700/60 border border-white/5 px-4 py-3 text-ink-100 placeholder-ink-400 focus:outline-none focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500/40;
+  }
+  .label {
+    @apply text-xs uppercase tracking-wider text-ink-400 font-semibold;
+  }
+  .divider {
+    @apply h-px w-full bg-white/5 my-4;
+  }
+  .safe-pt { padding-top: env(safe-area-inset-top); }
+  .safe-pb { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring { animation: pulse-ring 1.2s ease-out infinite; }
