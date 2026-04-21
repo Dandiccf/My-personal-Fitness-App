@@ -18,6 +18,8 @@ export default function Today() {
   const sessions = useStore(s => s.sessions);
   const activeSession = useStore(s => s.activeSession);
   const startSession = useStore(s => s.startSession);
+  const skipToday = useStore(s => s.skipToday);
+  const deleteSession = useStore(s => s.deleteSession);
   const nav = useNavigate();
 
   const [recoveryOpen, setRecoveryOpen] = useState(false);
@@ -41,8 +43,24 @@ export default function Today() {
 
   const isGym = workoutType === 'gym_a' || workoutType === 'gym_b' || workoutType === 'gym_c';
   const isCardio = workoutType === 'run_easy' || workoutType === 'run_long' || workoutType === 'mtb';
+  const isRestDay = workoutType === 'rest' || workoutType === 'mobility';
 
-  const lastSession = sessions.filter(s => s.completed).slice(-1)[0];
+  const todayIso = todayISO();
+  const todaysSkipped = sessions.find(s => s.date === todayIso && s.skipped);
+
+  const onSkip = async () => {
+    const label = WORKOUT_TYPE_LABEL[workoutType];
+    if (!confirm(`„${label}" heute wirklich überspringen?`)) return;
+    await skipToday(workoutType);
+  };
+
+  const onUndoSkip = async () => {
+    if (!todaysSkipped) return;
+    if (!confirm('Skip rückgängig machen?')) return;
+    await deleteSession(todaysSkipped.id);
+  };
+
+  const lastSession = sessions.filter(s => s.completed && !s.skipped).slice(-1)[0];
   const weeklyDone = useMemo(() => {
     const start = new Date();
     start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
@@ -88,41 +106,61 @@ export default function Today() {
             </div>
           </div>
 
-          {isGym && (
-            <>
-              <div className="grid grid-cols-3 gap-3 mb-5">
-                <Stat value={String(template.items.filter(i => i.priority !== 'optional').length)} label="Übungen" />
-                <Stat value={String(scheduledSets.length)} label="Sätze" />
-                <Stat value={`~${estimatedMin}m`} label="Dauer" />
+          {todaysSkipped ? (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-warn-500/10 border border-warn-500/30 px-4 py-3 text-sm text-warn-500">
+                Heute als übersprungen markiert.
               </div>
-              {activeSession ? (
-                <Link to="/session" className="btn-primary w-full text-lg">Session fortsetzen</Link>
-              ) : (
+              <button className="btn-ghost w-full" onClick={onUndoSkip}>Skip rückgängig machen</button>
+            </div>
+          ) : (
+            <>
+              {isGym && (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <Stat value={String(template.items.filter(i => i.priority !== 'optional').length)} label="Übungen" />
+                    <Stat value={String(scheduledSets.length)} label="Sätze" />
+                    <Stat value={`~${estimatedMin}m`} label="Dauer" />
+                  </div>
+                  {activeSession ? (
+                    <Link to="/session" className="btn-primary w-full text-lg">Session fortsetzen</Link>
+                  ) : (
+                    <div className="space-y-3">
+                      <button className="btn-primary w-full text-lg" onClick={() => { setPendingType(workoutType); setRecoveryOpen(true); }}>
+                        Workout starten
+                      </button>
+                      <label className="flex items-center justify-between text-sm text-ink-300 px-2">
+                        <span>Quick Mode (Zubehör streichen)</span>
+                        <Toggle checked={quickMode} onChange={setQuickMode} />
+                      </label>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {isCardio && (
                 <div className="space-y-3">
-                  <button className="btn-primary w-full text-lg" onClick={() => { setPendingType(workoutType); setRecoveryOpen(true); }}>
-                    Workout starten
-                  </button>
-                  <label className="flex items-center justify-between text-sm text-ink-300 px-2">
-                    <span>Quick Mode (Zubehör streichen)</span>
-                    <Toggle checked={quickMode} onChange={setQuickMode} />
-                  </label>
+                  <p className="text-sm text-ink-300">{workoutType === 'run_long' ? '40–60 Min locker Zone 2' : workoutType === 'mtb' ? '60–90 Min locker' : '30–40 Min locker Zone 2'}</p>
+                  <Link to="/cardio/new" className="btn-primary w-full text-lg">Cardio loggen</Link>
                 </div>
               )}
+
+              {isRestDay && (
+                <div className="space-y-3">
+                  <p className="text-sm text-ink-300">Erholung ist Teil des Plans. Beweglichkeit, Spaziergang, Familie.</p>
+                  <Link to="/cardio/new" className="btn-ghost w-full">Locker bewegt? Trotzdem loggen</Link>
+                </div>
+              )}
+
+              {!isRestDay && !activeSession && (
+                <button
+                  className="w-full mt-3 text-sm text-ink-400 hover:text-ink-200 py-2"
+                  onClick={onSkip}
+                >
+                  Heute überspringen
+                </button>
+              )}
             </>
-          )}
-
-          {isCardio && (
-            <div className="space-y-3">
-              <p className="text-sm text-ink-300">{workoutType === 'run_long' ? '40–60 Min locker Zone 2' : workoutType === 'mtb' ? '60–90 Min locker' : '30–40 Min locker Zone 2'}</p>
-              <Link to="/cardio/new" className="btn-primary w-full text-lg">Cardio loggen</Link>
-            </div>
-          )}
-
-          {!isGym && !isCardio && (
-            <div className="space-y-3">
-              <p className="text-sm text-ink-300">Erholung ist Teil des Plans. Beweglichkeit, Spaziergang, Familie.</p>
-              <Link to="/cardio/new" className="btn-ghost w-full">Locker bewegt? Trotzdem loggen</Link>
-            </div>
           )}
         </div>
 

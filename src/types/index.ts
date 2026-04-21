@@ -1,27 +1,38 @@
 // Core domain types
 
-export type WorkoutType = 'gym_a' | 'gym_b' | 'gym_c' | 'run_easy' | 'run_long' | 'mtb' | 'mobility' | 'rest';
+export type WorkoutType = "gym_a" | "gym_b" | "gym_c" | "run_easy" | "run_long" | "mtb" | "mobility" | "rest";
 
 export type MovementPattern =
-  | 'horizontal_push'
-  | 'vertical_pull'
-  | 'horizontal_pull'
-  | 'squat'
-  | 'hinge'
-  | 'quad_iso'
-  | 'hamstring_iso'
-  | 'lateral_delt'
-  | 'rear_delt'
-  | 'biceps'
-  | 'triceps'
-  | 'calves'
-  | 'core';
+  | "horizontal_push"
+  | "vertical_pull"
+  | "horizontal_pull"
+  | "squat"
+  | "hinge"
+  | "quad_iso"
+  | "hamstring_iso"
+  | "lateral_delt"
+  | "rear_delt"
+  | "biceps"
+  | "triceps"
+  | "calves"
+  | "core";
 
 export type MuscleGroup =
-  | 'chest' | 'back' | 'lats' | 'quads' | 'hamstrings' | 'glutes'
-  | 'shoulders' | 'rear_delts' | 'biceps' | 'triceps' | 'calves' | 'core' | 'forearms';
+  | "chest"
+  | "back"
+  | "lats"
+  | "quads"
+  | "hamstrings"
+  | "glutes"
+  | "shoulders"
+  | "rear_delts"
+  | "biceps"
+  | "triceps"
+  | "calves"
+  | "core"
+  | "forearms";
 
-export type EquipmentType = 'machine' | 'cable' | 'smith' | 'dumbbell' | 'barbell' | 'bodyweight';
+export type EquipmentType = "machine" | "cable" | "smith" | "dumbbell" | "barbell" | "bodyweight";
 
 export interface Exercise {
   id: string;
@@ -43,7 +54,7 @@ export interface Exercise {
 
 export interface WorkoutTemplateItem {
   exerciseId: string;
-  priority: 'main' | 'accessory' | 'optional';
+  priority: "main" | "accessory" | "optional";
   baseSets: number;
   repMin: number;
   repMax: number;
@@ -90,7 +101,7 @@ export interface ExercisePerformance {
   name: string;
   movementPattern: MovementPattern;
   variantId?: string; // if user swapped in an alternative
-  priority: 'main' | 'accessory' | 'optional';
+  priority: "main" | "accessory" | "optional";
   repMin: number;
   repMax: number;
   restSec: number;
@@ -104,21 +115,23 @@ export interface RecoveryCheck {
   sleep: number; // 1..5
   energy: number;
   soreness: number; // higher = less sore
-  joints: number;  // higher = better
-  stress: number;  // higher = less stressed
+  joints: number; // higher = better
+  stress: number; // higher = less stressed
   timeAvailableMin: number;
 }
 
 export interface Session {
   id: string;
-  date: string;          // YYYY-MM-DD (local)
-  weekIndex: number;     // week number within the program block
-  blockIndex: number;    // which block (0-based)
+  date: string; // YYYY-MM-DD (local)
+  weekIndex: number; // week number within the program block
+  blockIndex: number; // which block (0-based)
   workoutType: WorkoutType;
-  startedAt: number;     // epoch ms
+  startedAt: number; // epoch ms
   endedAt?: number;
   durationSec?: number;
   completed: boolean;
+  skipped?: boolean; // Nutzer hat den Trainingstag bewusst übersprungen
+  skipReason?: string;
   quickModeUsed: boolean;
   recovery?: RecoveryCheck;
   perceivedEnergy?: number; // 1-5
@@ -129,38 +142,44 @@ export interface Session {
 export interface CardioSession {
   id: string;
   date: string;
-  type: 'run_easy' | 'run_long' | 'mtb' | 'intervals';
+  type: "run_easy" | "run_long" | "mtb" | "intervals";
   durationMin: number;
   distanceKm?: number;
-  avgPace?: string;      // "mm:ss"
-  rpe?: number;          // 1-10
+  avgPace?: string; // "mm:ss"
+  rpe?: number; // 1-10
   notes?: string;
 }
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  createdAt: number;
+}
+
 export interface UserProfile {
-  id: 'me';
+  id: "me";
   name: string;
-  goal: 'reentry' | 'maintain' | 'hypertrophy_light';
-  experience: 'returner' | 'intermediate' | 'advanced';
-  weightUnit: 'kg' | 'lb';
+  goal: "reentry" | "maintain" | "hypertrophy_light";
+  experience: "returner" | "intermediate" | "advanced";
+  weightUnit: "kg" | "lb";
   createdAt: number;
 }
 
 export interface Settings {
-  id: 'app';
+  id: "app";
   programId: string;
   programStartDate: string; // ISO date (Mon of week 1)
   blockWeeks: number;
   defaultRestMainSec: number;
   defaultRestIsoSec: number;
   quickModeEnabled: boolean;
-  darkMode: 'dark' | 'light' | 'auto';
+  darkMode: "dark" | "light" | "auto";
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   sessionDurationTargetMin: number;
   preferredSwaps: Record<string, string>; // exerciseId -> variantId preferred for current block
   hiddenExerciseIds: string[];
-  deloadMode: 'auto' | 'manual';
+  deloadMode: "auto" | "manual";
 }
 
 export interface ProgressionState {

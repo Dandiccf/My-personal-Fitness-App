@@ -22,8 +22,9 @@ export default function Week() {
     const iso = toISODate(d);
     const entry = PROGRAM.schedule.find(s => s.dayOfWeek === i);
     const completed = sessions.some(s => s.completed && s.date === iso);
+    const skipped = sessions.some(s => s.skipped && s.date === iso);
     const isToday = toISODate(today) === iso;
-    return { i, date: d, iso, workoutType: entry!.workoutType, completed, isToday };
+    return { i, date: d, iso, workoutType: entry!.workoutType, completed, skipped, isToday };
   });
 
   return (
@@ -51,6 +52,7 @@ export default function Week() {
                     <span className="label">{WEEKDAY_LONG_DE[d.i]}</span>
                     {d.isToday && <span className="chip-accent">heute</span>}
                     {d.completed && <span className="chip-accent">erledigt</span>}
+                    {d.skipped && !d.completed && <span className="chip-warn">übersprungen</span>}
                   </div>
                   <div className="text-lg font-semibold text-ink-100 mt-0.5">{WORKOUT_TYPE_LABEL[d.workoutType]}</div>
                   {tpl.description && <div className="text-xs text-ink-400 mt-0.5 truncate">{tpl.description}</div>}

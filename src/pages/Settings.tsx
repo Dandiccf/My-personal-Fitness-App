@@ -1,25 +1,39 @@
-import { Link } from 'react-router-dom';
-import Header from '../components/Header';
-import { useStore } from '../store/useStore';
-import { todayISO } from '../lib/dateUtils';
+import { Link } from "react-router-dom";
+import Header from "../components/Header";
+import { useStore } from "../store/useStore";
+import { todayISO } from "../lib/dateUtils";
 
 export default function Settings() {
-  const settings = useStore(s => s.settings)!;
-  const profile = useStore(s => s.profile)!;
-  const save = useStore(s => s.saveSettings);
-  const saveProfile = useStore(s => s.saveProfile);
+  const currentUser = useStore((s) => s.currentUser)!;
+  const settings = useStore((s) => s.settings)!;
+  const profile = useStore((s) => s.profile)!;
+  const save = useStore((s) => s.saveSettings);
+  const saveProfile = useStore((s) => s.saveProfile);
+  const logout = useStore((s) => s.logout);
 
   return (
     <div>
       <Header title="Einstellungen" />
       <div className="px-5 py-4 space-y-5">
+        <Section title="Konto">
+          <Row>
+            <span>E-Mail</span>
+            <span className="text-sm text-ink-300 break-all text-right">{currentUser.email}</span>
+          </Row>
+          <div className="px-4 py-3">
+            <button className="btn-danger w-full" onClick={logout}>
+              Abmelden
+            </button>
+          </div>
+        </Section>
+
         <Section title="Profil">
           <Row>
             <span>Name</span>
             <input
               className="input max-w-[60%] text-right"
               defaultValue={profile.name}
-              onBlur={e => saveProfile({ name: e.target.value })}
+              onBlur={(e) => saveProfile({ name: e.target.value })}
             />
           </Row>
           <Row>
@@ -27,7 +41,7 @@ export default function Settings() {
             <select
               className="input max-w-[60%]"
               value={profile.goal}
-              onChange={e => saveProfile({ goal: e.target.value as any })}
+              onChange={(e) => saveProfile({ goal: e.target.value as any })}
             >
               <option value="reentry">Wiedereinstieg</option>
               <option value="maintain">Erhalt</option>
@@ -40,18 +54,21 @@ export default function Settings() {
           <Row>
             <span>Block-Länge (Wochen)</span>
             <input
-              type="number" className="input max-w-[30%] text-right"
-              min={4} max={16}
+              type="number"
+              className="input max-w-[30%] text-right"
+              min={4}
+              max={16}
               defaultValue={settings.blockWeeks}
-              onBlur={e => save({ blockWeeks: Math.max(4, Math.min(16, Number(e.target.value) || 12)) })}
+              onBlur={(e) => save({ blockWeeks: Math.max(4, Math.min(16, Number(e.target.value) || 12)) })}
             />
           </Row>
           <Row>
             <span>Programmstart</span>
             <input
-              type="date" className="input max-w-[60%] text-right"
+              type="date"
+              className="input max-w-[60%] text-right"
               value={settings.programStartDate}
-              onChange={e => save({ programStartDate: e.target.value })}
+              onChange={(e) => save({ programStartDate: e.target.value })}
             />
           </Row>
           <Row>
@@ -59,7 +76,7 @@ export default function Settings() {
             <select
               className="input max-w-[50%]"
               value={settings.deloadMode}
-              onChange={e => save({ deloadMode: e.target.value as any })}
+              onChange={(e) => save({ deloadMode: e.target.value as any })}
             >
               <option value="auto">Automatisch</option>
               <option value="manual">Manuell</option>
@@ -67,28 +84,37 @@ export default function Settings() {
           </Row>
           <Row>
             <span>Ziel-Dauer (Min)</span>
-            <input type="number" className="input max-w-[30%] text-right"
-              min={25} max={120}
+            <input
+              type="number"
+              className="input max-w-[30%] text-right"
+              min={25}
+              max={120}
               defaultValue={settings.sessionDurationTargetMin}
-              onBlur={e => save({ sessionDurationTargetMin: Number(e.target.value) })}
+              onBlur={(e) => save({ sessionDurationTargetMin: Number(e.target.value) })}
             />
           </Row>
-          <button className="text-sm text-accent-400 mt-2" onClick={() => save({ programStartDate: todayISO() })}>Programm jetzt neu starten</button>
+          <button className="text-sm text-accent-400 mt-2" onClick={() => save({ programStartDate: todayISO() })}>
+            Programm jetzt neu starten
+          </button>
         </Section>
 
         <Section title="Pausen">
           <Row>
             <span>Pause Hauptübungen (Sek)</span>
-            <input type="number" className="input max-w-[30%] text-right"
+            <input
+              type="number"
+              className="input max-w-[30%] text-right"
               defaultValue={settings.defaultRestMainSec}
-              onBlur={e => save({ defaultRestMainSec: Number(e.target.value) || 110 })}
+              onBlur={(e) => save({ defaultRestMainSec: Number(e.target.value) || 110 })}
             />
           </Row>
           <Row>
             <span>Pause Iso-Übungen (Sek)</span>
-            <input type="number" className="input max-w-[30%] text-right"
+            <input
+              type="number"
+              className="input max-w-[30%] text-right"
               defaultValue={settings.defaultRestIsoSec}
-              onBlur={e => save({ defaultRestIsoSec: Number(e.target.value) || 75 })}
+              onBlur={(e) => save({ defaultRestIsoSec: Number(e.target.value) || 75 })}
             />
           </Row>
         </Section>
@@ -96,11 +122,11 @@ export default function Settings() {
         <Section title="Benachrichtigung">
           <Row>
             <span>Ton bei Pausenende</span>
-            <Toggle checked={settings.soundEnabled} onChange={v => save({ soundEnabled: v })} />
+            <Toggle checked={settings.soundEnabled} onChange={(v) => save({ soundEnabled: v })} />
           </Row>
           <Row>
             <span>Vibration</span>
-            <Toggle checked={settings.vibrationEnabled} onChange={v => save({ vibrationEnabled: v })} />
+            <Toggle checked={settings.vibrationEnabled} onChange={(v) => save({ vibrationEnabled: v })} />
           </Row>
         </Section>
 
@@ -137,11 +163,14 @@ function Row({ children }: { children: React.ReactNode }) {
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
-      role="switch" aria-checked={checked}
+      role="switch"
+      aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`w-11 h-6 rounded-full flex items-center transition ${checked ? 'bg-accent-500' : 'bg-ink-600'}`}
+      className={`w-11 h-6 rounded-full flex items-center transition ${checked ? "bg-accent-500" : "bg-ink-600"}`}
     >
-      <span className={`w-5 h-5 bg-white rounded-full shadow transform transition ${checked ? 'translate-x-5' : 'translate-x-0.5'}`} />
+      <span
+        className={`w-5 h-5 bg-white rounded-full shadow transform transition ${checked ? "translate-x-5" : "translate-x-0.5"}`}
+      />
     </button>
   );
 }

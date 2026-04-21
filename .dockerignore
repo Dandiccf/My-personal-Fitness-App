@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.vscode
+.DS_Store
+.env
+.env.*
+!.env.example
+server/data
+*.db
+*.db-shm
+*.db-wal
+README.md
+DEPLOY.md

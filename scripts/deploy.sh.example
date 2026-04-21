@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Vorlage. Kopiere zu `scripts/deploy.sh` (wird nicht committed), mach sie
+# ausführbar (`chmod +x`) und ersetze die beiden Werte unten.
+
+set -euo pipefail
+
+# SSH-Ziel (z. B. root@1.2.3.4)
+SERVER="${SERVER:-root@YOUR_SERVER_IP}"
+
+# App-Pfad auf dem Server
+REMOTE_DIR="${REMOTE_DIR:-/opt/training}"
+
+# Öffentliche URL nach Deploy (z. B. https://1-2-3-4.sslip.io)
+URL="${URL:-https://YOUR-HOST.example.com}"
+
+echo "→ Sync zu ${SERVER}:${REMOTE_DIR}"
+rsync -avz --delete \
+  --exclude='/node_modules/' \
+  --exclude='/dist/' \
+  --exclude='/.git/' \
+  --exclude='/data/' \
+  --exclude='/server/data/' \
+  --exclude='.env' \
+  --exclude='.DS_Store' \
+  --exclude='/.vite/' \
+  --exclude='/backup-*/' \
+  ./ "${SERVER}:${REMOTE_DIR}/"
+
+echo "→ Build & Restart"
+ssh "${SERVER}" "set -e; cd '${REMOTE_DIR}' && docker compose --env-file .env build app && docker compose --env-file .env up -d"
+
+echo "→ Status"
+ssh "${SERVER}" "cd '${REMOTE_DIR}' && docker compose ps"
+
+echo
+echo "✓ Deployed. Öffne: ${URL}"

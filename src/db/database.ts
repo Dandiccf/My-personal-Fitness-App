@@ -1,171 +1,177 @@
-import { openDB, type IDBPDatabase } from 'idb';
-import type { Session, CardioSession, Settings, UserProfile, ProgressionState, ExportBundle } from '../types';
+import { apiFetch } from "../lib/api";
+import type { Session, CardioSession, Settings, UserProfile, ProgressionState, ExportBundle } from "../types";
 
-const DB_NAME = 'training_db';
-const DB_VERSION = 1;
+let bundleCache: ExportBundle | null = null;
 
-interface Schema {
-  sessions: { key: string; value: Session; indexes: { 'by-date': string } };
-  cardio: { key: string; value: CardioSession; indexes: { 'by-date': string } };
-  progression: { key: string; value: ProgressionState };
-  settings: { key: 'app'; value: Settings };
-  profile: { key: 'me'; value: UserProfile };
-}
-
-let dbPromise: Promise<IDBPDatabase<Schema>> | null = null;
-
-export function getDB() {
-  if (!dbPromise) {
-    dbPromise = openDB<Schema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('sessions')) {
-          const store = db.createObjectStore('sessions', { keyPath: 'id' });
-          store.createIndex('by-date', 'date');
-        }
-        if (!db.objectStoreNames.contains('cardio')) {
-          const store = db.createObjectStore('cardio', { keyPath: 'id' });
-          store.createIndex('by-date', 'date');
-        }
-        if (!db.objectStoreNames.contains('progression')) {
-          db.createObjectStore('progression', { keyPath: 'exerciseId' });
-        }
-        if (!db.objectStoreNames.contains('settings')) {
-          db.createObjectStore('settings', { keyPath: 'id' });
-        }
-        if (!db.objectStoreNames.contains('profile')) {
-          db.createObjectStore('profile', { keyPath: 'id' });
-        }
-      }
-    });
-  }
-  return dbPromise;
-}
-
-// --- sessions ---
-export async function putSession(s: Session) {
-  const db = await getDB();
-  await db.put('sessions', s);
-}
-
-export async function getSession(id: string): Promise<Session | undefined> {
-  const db = await getDB();
-  return db.get('sessions', id);
-}
-
-export async function deleteSession(id: string) {
-  const db = await getDB();
-  await db.delete('sessions', id);
-}
-
-export async function getAllSessions(): Promise<Session[]> {
-  const db = await getDB();
-  const all = await db.getAll('sessions');
-  return all.sort((a, b) => a.startedAt - b.startedAt);
-}
-
-// --- cardio ---
-export async function putCardio(c: CardioSession) {
-  const db = await getDB();
-  await db.put('cardio', c);
-}
-
-export async function deleteCardio(id: string) {
-  const db = await getDB();
-  await db.delete('cardio', id);
-}
-
-export async function getAllCardio(): Promise<CardioSession[]> {
-  const db = await getDB();
-  return (await db.getAll('cardio')).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-// --- progression ---
-export async function putProgression(p: ProgressionState) {
-  const db = await getDB();
-  await db.put('progression', p);
-}
-
-export async function getAllProgression(): Promise<ProgressionState[]> {
-  const db = await getDB();
-  return db.getAll('progression');
-}
-
-// --- settings ---
-export async function putSettings(s: Settings) {
-  const db = await getDB();
-  await db.put('settings', s);
-}
-
-export async function getSettings(): Promise<Settings | null> {
-  const db = await getDB();
-  const s = await db.get('settings', 'app');
-  return s ?? null;
-}
-
-// --- profile ---
-export async function putProfile(p: UserProfile) {
-  const db = await getDB();
-  await db.put('profile', p);
-}
-
-export async function getProfile(): Promise<UserProfile | null> {
-  const db = await getDB();
-  const p = await db.get('profile', 'me');
-  return p ?? null;
-}
-
-// --- export / import ---
-export async function exportAll(): Promise<ExportBundle> {
-  const [sessions, cardio, progression, settings, profile] = await Promise.all([
-    getAllSessions(),
-    getAllCardio(),
-    getAllProgression(),
-    getSettings(),
-    getProfile()
-  ]);
+function createEmptyBundle(): ExportBundle {
   return {
     version: 1,
     exportedAt: Date.now(),
-    sessions,
-    cardio,
-    progression,
-    settings,
-    profile
+    settings: null,
+    profile: null,
+    sessions: [],
+    cardio: [],
+    progression: [],
   };
 }
 
-export async function importAll(bundle: ExportBundle, { replace }: { replace: boolean }) {
-  const db = await getDB();
-  const tx = db.transaction(['sessions', 'cardio', 'progression', 'settings', 'profile'], 'readwrite');
+function cloneBundle(bundle: ExportBundle): ExportBundle {
+  return JSON.parse(JSON.stringify(bundle)) as ExportBundle;
+}
 
+async function readBundle(force = false): Promise<ExportBundle> {
+  if (!bundleCache || force) {
+    bundleCache = await apiFetch<ExportBundle>("/data");
+  }
+  return cloneBundle(bundleCache);
+}
+
+async function writeBundle(bundle: ExportBundle): Promise<ExportBundle> {
+  bundleCache = await apiFetch<ExportBundle>("/data", {
+    method: "PUT",
+    body: JSON.stringify({
+      ...bundle,
+      version: 1,
+      exportedAt: Date.now(),
+    }),
+  });
+  return cloneBundle(bundleCache);
+}
+
+function upsertById<T extends { id: string }>(items: T[], nextItem: T) {
+  return [...items.filter((item) => item.id !== nextItem.id), nextItem];
+}
+
+function upsertByKey<T>(items: T[], nextItem: T, getKey: (item: T) => string) {
+  const key = getKey(nextItem);
+  return [...items.filter((item) => getKey(item) !== key), nextItem];
+}
+
+export function clearCache() {
+  bundleCache = null;
+}
+
+export async function putSession(session: Session) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, sessions: upsertById(bundle.sessions, session) });
+}
+
+export async function getSession(id: string): Promise<Session | undefined> {
+  const bundle = await readBundle();
+  return bundle.sessions.find((session) => session.id === id);
+}
+
+export async function deleteSession(id: string) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, sessions: bundle.sessions.filter((session) => session.id !== id) });
+}
+
+export async function getAllSessions(): Promise<Session[]> {
+  const bundle = await readBundle();
+  return bundle.sessions.sort((a, b) => a.startedAt - b.startedAt);
+}
+
+export async function putCardio(cardio: CardioSession) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, cardio: upsertById(bundle.cardio, cardio) });
+}
+
+export async function deleteCardio(id: string) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, cardio: bundle.cardio.filter((entry) => entry.id !== id) });
+}
+
+export async function getAllCardio(): Promise<CardioSession[]> {
+  const bundle = await readBundle();
+  return bundle.cardio.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function putProgression(state: ProgressionState) {
+  const bundle = await readBundle();
+  await writeBundle({
+    ...bundle,
+    progression: upsertByKey(bundle.progression, state, (item) => item.exerciseId),
+  });
+}
+
+export async function getAllProgression(): Promise<ProgressionState[]> {
+  const bundle = await readBundle();
+  return bundle.progression;
+}
+
+export async function putSettings(settings: Settings) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, settings });
+}
+
+export async function getSettings(): Promise<Settings | null> {
+  const bundle = await readBundle();
+  return bundle.settings ?? null;
+}
+
+export async function putProfile(profile: UserProfile) {
+  const bundle = await readBundle();
+  await writeBundle({ ...bundle, profile });
+}
+
+export async function getProfile(): Promise<UserProfile | null> {
+  const bundle = await readBundle();
+  return bundle.profile ?? null;
+}
+
+export async function exportAll(): Promise<ExportBundle> {
+  return readBundle(true);
+}
+
+export async function importAll(bundle: ExportBundle, { replace }: { replace: boolean }) {
   if (replace) {
-    await Promise.all([
-      tx.objectStore('sessions').clear(),
-      tx.objectStore('cardio').clear(),
-      tx.objectStore('progression').clear(),
-      tx.objectStore('settings').clear(),
-      tx.objectStore('profile').clear()
-    ]);
+    await writeBundle({
+      version: 1,
+      exportedAt: Date.now(),
+      settings: bundle.settings ?? null,
+      profile: bundle.profile ?? null,
+      sessions: bundle.sessions ?? [],
+      cardio: bundle.cardio ?? [],
+      progression: bundle.progression ?? [],
+    });
+    return;
   }
 
-  for (const s of bundle.sessions ?? []) await tx.objectStore('sessions').put(s);
-  for (const c of bundle.cardio ?? []) await tx.objectStore('cardio').put(c);
-  for (const p of bundle.progression ?? []) await tx.objectStore('progression').put(p);
-  if (bundle.settings) await tx.objectStore('settings').put(bundle.settings);
-  if (bundle.profile) await tx.objectStore('profile').put(bundle.profile);
+  const current = await readBundle();
 
-  await tx.done;
+  const mergedSessions = [...current.sessions];
+  for (const session of bundle.sessions ?? []) {
+    const index = mergedSessions.findIndex((item) => item.id === session.id);
+    if (index >= 0) mergedSessions[index] = session;
+    else mergedSessions.push(session);
+  }
+
+  const mergedCardio = [...current.cardio];
+  for (const cardio of bundle.cardio ?? []) {
+    const index = mergedCardio.findIndex((item) => item.id === cardio.id);
+    if (index >= 0) mergedCardio[index] = cardio;
+    else mergedCardio.push(cardio);
+  }
+
+  const mergedProgression = [...current.progression];
+  for (const state of bundle.progression ?? []) {
+    const index = mergedProgression.findIndex((item) => item.exerciseId === state.exerciseId);
+    if (index >= 0) mergedProgression[index] = state;
+    else mergedProgression.push(state);
+  }
+
+  await writeBundle({
+    version: 1,
+    exportedAt: Date.now(),
+    settings: bundle.settings ?? current.settings,
+    profile: bundle.profile ?? current.profile,
+    sessions: mergedSessions,
+    cardio: mergedCardio,
+    progression: mergedProgression,
+  });
 }
 
 export async function wipeAll() {
-  const db = await getDB();
-  const tx = db.transaction(['sessions', 'cardio', 'progression', 'settings', 'profile'], 'readwrite');
-  await Promise.all([
-    tx.objectStore('sessions').clear(),
-    tx.objectStore('cardio').clear(),
-    tx.objectStore('progression').clear(),
-    tx.objectStore('settings').clear(),
-    tx.objectStore('profile').clear()
-  ]);
-  await tx.done;
+  await apiFetch<void>("/data", { method: "DELETE" });
+  clearCache();
 }

@@ -2,8 +2,26 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
 .DS_Store
 .vite
 .env
 .env.*
 !.env.example
+server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# --- Deploy-Konfiguration: enthält Server-IP / Hostname ---
+# Stattdessen: Caddyfile.example und scripts/deploy.sh.example committen
+Caddyfile
+scripts/deploy.sh
+.deploy.env
+
+# Backups
+backup-*/
+/data/
+
+# Persönliche Deploy-Notizen
+*.local.md

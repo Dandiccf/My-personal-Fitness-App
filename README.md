@@ -1,20 +1,36 @@
 # Trainings-App
 
-Mobile-first PWA für den strukturierten Wiedereinstieg ins Gerätetraining. Läuft komplett offline, speichert alle Daten lokal (IndexedDB), kein Backend nötig. Deploybar als statisches Bundle.
+Mobile-first PWA für strukturiertes Kraft- und Cardio-Tracking. Das Frontend läuft mit React/Vite, das Backend mit Node.js und Express. Benutzer registrieren sich mit E-Mail und Passwort, ihre Daten werden serverseitig in SQLite getrennt pro Konto gespeichert.
 
 ## Tech-Stack
 
 - **React 18 + TypeScript + Vite** — schneller Build, einfache statische Ausgabe
+- **Node.js + Express** — API, Authentifizierung und optionales Ausliefern des gebauten Frontends
+- **SQLite** via `better-sqlite3` — einfache persistente Server-Datenbank pro Deployment
 - **Tailwind CSS** — dichtes, konsistentes, mobile-first Design
 - **Zustand** — kleine reaktive Store-Schicht
-- **IndexedDB** via `idb` — saubere strukturierte Persistenz mit Export/Import
+- **JWT + bcrypt** — Login, Registrierung und geschützte API-Endpunkte
 - **vite-plugin-pwa** — Manifest + Service Worker für Offline / Install-to-Home
 
-Keine schweren UI-Libraries, kein Backend, kein Tracking.
+Keine schweren UI-Libraries, kein externes Tracking.
 
 ## Architektur-Überblick
 
 ```
+server/
+├── index.js               // Bootstrapping und Start des HTTP-Servers
+├── app.js                 // Express-App, Middleware, API-Routen, statisches Hosting
+├── config.js              // Umgebungsvariablen und Laufzeitkonfiguration
+├── db.js                  // SQLite-Verbindung und Tabellenerstellung
+├── middleware/
+│   └── auth.js            // JWT-Validierung für geschützte Endpunkte
+├── routes/
+│   ├── authRoutes.js      // Registrierung, Login, aktueller Benutzer
+│   └── dataRoutes.js      // Benutzerbezogene Trainingsdaten
+└── services/
+  ├── userService.js     // Benutzer- und Passwortlogik
+  └── userDataService.js // Persistenz der Trainingsdaten pro Benutzer
+
 src/
 ├── App.tsx                 // Router + PWA-Shell
 ├── main.tsx                // Entry
@@ -23,16 +39,26 @@ src/
 ├── data/
 │   ├── exercises.ts        // Übungsbibliothek (geräte-/kabellastig, mit Alternativen)
 │   └── programTemplate.ts  // 3× Ganzkörper + 2× Cardio Wochenstruktur
-├── db/database.ts          // IndexedDB (sessions, cardio, progression, settings, profile)
+├── db/database.ts          // HTTP-basierte Datenzugriffe auf die Server-API
 ├── lib/
 │   ├── volumeEngine.ts     // 12-Wochen-Blocksteuerung, Recovery-Scaling, Compliance
 │   ├── progression.ts      // Double Progression + Stagnation → Variantenvorschlag
+│   ├── api.ts              // gemeinsamer Fetch-Client für die API
+│   ├── auth.ts             // Token-Handling, Login, Registrierung
 │   └── dateUtils.ts
 ├── store/useStore.ts       // gesamte Session-/Settings-State-Logik
 ├── components/             // BottomNav, Header, RestTimer, NumberStepper, BottomSheet, Sparkline
 └── pages/                  // Today, Week, ActiveSession, History, SessionDetail, Stats,
-                            // ExerciseDetail, Settings, Library, CardioForm, DataTransfer
+                            // ExerciseDetail, Settings, Library, CardioForm, DataTransfer, Auth
 ```
+
+## Laufzeitmodell
+
+- Im Development laufen zwei Prozesse: Vite für das Frontend auf Port 5173 und ein Node.js-Express-Server auf Port 3001.
+- Im Production-Betrieb läuft der Express-Server. Er bedient die API und kann zusätzlich das gebaute Frontend aus `dist/` ausliefern.
+- SQLite ist eine Datei auf dem Server, standardmäßig unter `server/data/app.sqlite`.
+
+Der Server, der tatsächlich läuft, ist also ein normaler Node.js-Prozess mit Express, gestartet über `node server/index.js`.
 
 ### Trainingslogik
 
@@ -40,7 +66,7 @@ src/
 - **Blocklogik (12 Wochen)** in `volumeEngine.ts`:
   W1–2 Re-Entry (ca. 80 % Volumen), W3–4 Aufbau, W5–6 Aufbau+, W7 Deload (~55 %),
   W8–10 Block 2, W11 Peak, W12 Reset/Deload.
-- **Satzzahlen** werden pro Übung und Woche *regelbasiert* berechnet (Hauptübung vs. Zubehör vs. Optional) — nicht hardcoded.
+- **Satzzahlen** werden pro Übung und Woche _regelbasiert_ berechnet (Hauptübung vs. Zubehör vs. Optional) — nicht hardcoded.
 - **Compliance-Check**: Wurden in den letzten 14 Tagen viele Sessions verpasst, bremst die Engine das Volumen (−1 oder −2 Sätze).
 - **Recovery-Check** vor der Session skaliert Volumen zusätzlich: schlechter Score → Volumenreduktion; wenig Zeit → Session wird gekürzt.
 - **Quick Mode**: streicht die letzten 1–3 Zubehör-/Optional-Übungen, Hauptübungen bleiben.
@@ -60,18 +86,28 @@ src/
 
 ```bash
 npm install
+cp .env.example .env
 ```
+
+Danach mindestens `JWT_SECRET` in `.env` setzen.
 
 ## Dev-Server
 
 ```bash
 npm run dev
-# öffnet http://localhost:5173
+# startet Backend auf http://localhost:3001 und Frontend auf http://localhost:5173
 ```
 
-Mit Handy im gleichen WLAN: Dev-Server mit Host binden:
+Nur Frontend separat starten:
+
 ```bash
-npm run dev -- --host
+npm run dev:client
+```
+
+Nur Backend separat starten:
+
+```bash
+npm run dev:server
 ```
 
 ## Production Build
@@ -80,43 +116,55 @@ npm run dev -- --host
 npm run build
 ```
 
-Das fertige Bundle liegt in `dist/` — einfach als statische Dateien hosten. `dist/manifest.webmanifest`, `dist/sw.js` und Icons sind enthalten.
+Danach den Server starten:
+
+```bash
+npm start
+```
+
+Das Frontend-Bundle liegt in `dist/`. Der Express-Server kann dieses Bundle direkt mit ausliefern.
 
 Lokal testen:
+
 ```bash
-npm run preview -- --host
+npm start
 ```
 
 ## Deploy
 
-Alle Varianten: Inhalt von `dist/` veröffentlichen.
+Dieses Projekt ist nicht mehr rein statisch deploybar. Du brauchst einen Host, auf dem Node.js läuft und der Schreibzugriff auf die SQLite-Datei hat.
 
-- **Netlify**: Drop `dist/` Ordner, oder `netlify deploy --dir=dist --prod`. `vite` liefert SPA-Fallback via `_redirects` wenn gewünscht (siehe unten).
-- **Vercel**: `vercel --prod`, Framework-Preset „Vite". Build Command `npm run build`, Output `dist`.
-- **GitHub Pages**: Auf einem Subpfad hosten — `base` in `vite.config.ts` von `'./'` auf `'/repo-name/'` setzen, dann `dist/` ins `gh-pages` Branch pushen.
-- **nginx (selbst gehostet)**: `dist/` in `/var/www/training/`, Konfig:
-  ```
-  server {
-    listen 80;
-    server_name training.example.com;
-    root /var/www/training;
-    index index.html;
-    location / { try_files $uri $uri/ /index.html; }
-    # Service Worker darf nicht endlos gecached werden:
-    location = /sw.js { add_header Cache-Control "no-cache"; }
+- **Render / Railway / Fly.io / VPS**: geeignet, weil dort ein Node-Prozess plus SQLite-Datei laufen kann.
+- **GitHub Pages**: ungeeignet, weil nur statisches Hosting und kein Node/SQLite.
+- **Netlify / klassisches Vercel Static Hosting**: ungeeignet für dieses Setup ohne separates Backend.
+- **nginx + Node auf VPS**: gut geeignet, nginx als Reverse Proxy vor dem Express-Server.
+
+Beispiel mit nginx vor Node:
+
+```
+server {
+  listen 80;
+  server_name training.example.com;
+  location / {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
   }
-  ```
+}
+```
+
 - **Apple „Zum Home-Bildschirm"**: App im Safari öffnen → Teilen → Zum Home-Bildschirm. Manifest + Apple-Touch-Icon sind vorhanden.
 
 ### SPA-Fallback (wichtig)
-Alle Routen liegen hinter React Router. Hosts ohne Fallback liefern für `/history` o. ä. sonst 404 beim Reload.
-- Netlify: `public/_redirects` mit `/* /index.html 200`
-- Vercel: funktioniert automatisch mit dem Vite-Preset
-- nginx: `try_files $uri $uri/ /index.html;` (siehe oben)
+
+Alle Routen liegen hinter React Router. Der Express-Server übernimmt den SPA-Fallback beim Ausliefern von `dist/`.
 
 ## Datenexport / Datenimport
 
 Unter **Einstellungen → Daten Export / Import**:
+
 - **Export**: lädt `training-export-YYYY-MM-DD.json` herunter (Sessions, Cardio, Progression, Settings, Profil).
 - **Import (zusammenführen)**: Bestehende Daten bleiben erhalten, Import überschreibt gleiche IDs.
 - **Import (ersetzen)**: Alle bestehenden Daten werden gelöscht und durch den Import ersetzt.
@@ -124,9 +172,20 @@ Unter **Einstellungen → Daten Export / Import**:
 
 Die JSON-Datei ist offenes Format — bei Bedarf per Texteditor prüfbar.
 
+## Umgebungsvariablen
+
+Die Beispielkonfiguration liegt in `.env.example`.
+
+- `PORT`: Port des Express-Servers
+- `JWT_SECRET`: Pflichtwert für Login-Token
+- `SQLITE_DB_PATH`: Pfad zur SQLite-Datei
+- `CORS_ORIGIN`: optional, nötig wenn Frontend und Backend auf verschiedenen Origins laufen
+- `VITE_API_BASE_URL`: Basis-URL für das Frontend, standardmäßig `/api`
+
 ## Standard-Daten
 
 Beim ersten Start ist das 12-Wochen-Programm direkt aktiv, Startdatum = heute. In den Einstellungen lässt sich:
+
 - Programmstart zurücksetzen,
 - Block-Länge anpassen (4–16 Wochen),
 - Deload-Modus (auto/manuell) umstellen,

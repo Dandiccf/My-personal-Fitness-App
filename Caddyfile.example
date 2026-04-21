@@ -1,0 +1,14 @@
+# Vorlage. Kopiere zu `Caddyfile` (wird nicht committed) und setze den Hostname.
+#
+# Für reines IP-Hosting ohne Domain via sslip.io:
+#   Ersetze YOUR-IP-WITH-DASHES durch deine IP mit Bindestrichen.
+#   Beispiel: aus 1.2.3.4 wird 1-2-3-4.sslip.io
+#
+# Für eigene Domain:
+#   Ersetze den Hostname durch deine Domain (z. B. training.example.com)
+#   und stelle sicher, dass ein DNS-A-Record auf den Server zeigt.
+
+YOUR-IP-WITH-DASHES.sslip.io {
+    encode zstd gzip
+    reverse_proxy app:3001
+}

@@ -15,7 +15,7 @@ export default function History() {
   const [tab, setTab] = useState<Tab>('gym');
 
   const gymSessions = useMemo(
-    () => sessions.filter(s => s.workoutType.startsWith('gym')).slice().reverse(),
+    () => sessions.filter(s => s.workoutType.startsWith('gym') || s.skipped).slice().reverse(),
     [sessions]
   );
   const cardioList = useMemo(() => cardio.slice().reverse(), [cardio]);
@@ -33,6 +33,25 @@ export default function History() {
           <div className="space-y-3">
             {gymSessions.length === 0 && <EmptyMsg text="Noch keine Krafttrainings geloggt." />}
             {gymSessions.map(s => {
+              if (s.skipped) {
+                return (
+                  <div key={s.id} className="card p-4 flex items-center justify-between opacity-75">
+                    <div>
+                      <div className="text-ink-100 font-semibold">{WORKOUT_TYPE_LABEL[s.workoutType]}</div>
+                      <div className="text-xs text-ink-400 mt-0.5">{formatFullDate(s.date)}</div>
+                      <div className="mt-2 flex gap-2 flex-wrap">
+                        <span className="chip-warn">Übersprungen</span>
+                        {s.skipReason && <span className="chip">{s.skipReason}</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => confirm('Eintrag löschen?') && deleteSession(s.id)}
+                      className="text-ink-400 text-sm px-2"
+                      aria-label="Skip löschen"
+                    >✕</button>
+                  </div>
+                );
+              }
               const totalSets = s.exercises.reduce((sum, e) => sum + e.sets.length, 0);
               const doneSets = s.exercises.reduce((sum, e) => sum + e.sets.filter(x => x.completed).length, 0);
               const volume = s.exercises.reduce((sum, e) => sum + e.sets.reduce(

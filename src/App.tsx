@@ -1,25 +1,29 @@
-import { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useStore } from './store/useStore';
-import BottomNav from './components/BottomNav';
-import Today from './pages/Today';
-import Week from './pages/Week';
-import ActiveSession from './pages/ActiveSession';
-import History from './pages/History';
-import SessionDetail from './pages/SessionDetail';
-import Stats from './pages/Stats';
-import Settings from './pages/Settings';
-import Library from './pages/Library';
-import CardioForm from './pages/CardioForm';
-import ExerciseDetail from './pages/ExerciseDetail';
-import DataTransfer from './pages/DataTransfer';
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useStore } from "./store/useStore";
+import Auth from "./pages/Auth";
+import BottomNav from "./components/BottomNav";
+import Today from "./pages/Today";
+import Week from "./pages/Week";
+import ActiveSession from "./pages/ActiveSession";
+import History from "./pages/History";
+import SessionDetail from "./pages/SessionDetail";
+import Stats from "./pages/Stats";
+import Settings from "./pages/Settings";
+import Library from "./pages/Library";
+import CardioForm from "./pages/CardioForm";
+import ExerciseDetail from "./pages/ExerciseDetail";
+import DataTransfer from "./pages/DataTransfer";
 
 export default function App() {
-  const init = useStore(s => s.init);
-  const ready = useStore(s => s.ready);
+  const init = useStore((s) => s.init);
+  const ready = useStore((s) => s.ready);
+  const currentUser = useStore((s) => s.currentUser);
   const location = useLocation();
 
-  useEffect(() => { init(); }, [init]);
+  useEffect(() => {
+    init();
+  }, [init]);
 
   if (!ready) {
     return (
@@ -32,11 +36,15 @@ export default function App() {
     );
   }
 
-  const hideNav = location.pathname.startsWith('/session');
+  if (!currentUser) {
+    return <Auth />;
+  }
+
+  const hideNav = location.pathname.startsWith("/session");
 
   return (
     <div className="min-h-screen bg-ink-950">
-      <main className={`mx-auto max-w-xl ${hideNav ? '' : 'pb-24'}`}>
+      <main className={`mx-auto max-w-xl ${hideNav ? "" : "pb-24"}`}>
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/week" element={<Week />} />
