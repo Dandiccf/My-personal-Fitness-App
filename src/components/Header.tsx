@@ -29,7 +29,7 @@ export default function Header({ title, subtitle, onBack, right }: Props) {
         )}
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-semibold text-ink-100 tracking-tight truncate">{title}</h1>
-          {subtitle && <p className="text-sm text-ink-400 truncate">{subtitle}</p>}
+          {subtitle && <p className="text-xs sm:text-sm text-ink-400 truncate">{subtitle}</p>}
         </div>
         {right}
       </div>

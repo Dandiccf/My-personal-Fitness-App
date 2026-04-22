@@ -1,20 +1,45 @@
-import { Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { useStore } from "../store/useStore";
 import { todayISO } from "../lib/dateUtils";
+import type { Settings as SettingsType, UserProfile, WorkoutType } from "../types";
+import { WORKOUT_TYPE_LABEL } from "../data/programTemplate";
 
 export default function Settings() {
   const currentUser = useStore((s) => s.currentUser)!;
   const settings = useStore((s) => s.settings)!;
   const profile = useStore((s) => s.profile)!;
-  const save = useStore((s) => s.saveSettings);
-  const saveProfile = useStore((s) => s.saveProfile);
+  const saveSettingsStore = useStore((s) => s.saveSettings);
+  const saveProfileStore = useStore((s) => s.saveProfile);
   const logout = useStore((s) => s.logout);
+  const startSimulation = useStore((s) => s.startSimulation);
+  const nav = useNavigate();
+
+  const simulate = (t: WorkoutType) => {
+    startSimulation(t);
+    nav('/session');
+  };
+
+  const [toast, setToast] = useState(false);
+  const toastTimer = useRef<number | null>(null);
+  const showSaved = () => {
+    setToast(true);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(false), 1400);
+  };
+  useEffect(() => () => { if (toastTimer.current) window.clearTimeout(toastTimer.current); }, []);
+
+  const save = async (patch: Partial<SettingsType>) => { await saveSettingsStore(patch); showSaved(); };
+  const saveProfile = async (patch: Partial<UserProfile>) => { await saveProfileStore(patch); showSaved(); };
 
   return (
     <div>
       <Header title="Einstellungen" />
       <div className="px-5 py-4 space-y-5">
+        <div className="rounded-xl bg-accent-500/10 border border-accent-500/20 px-4 py-2.5 text-xs text-accent-400">
+          Änderungen werden automatisch gespeichert.
+        </div>
         <Section title="Konto">
           <Row>
             <span>E-Mail</span>
@@ -24,6 +49,19 @@ export default function Settings() {
             <button className="btn-danger w-full" onClick={logout}>
               Abmelden
             </button>
+          </div>
+        </Section>
+
+        <Section title="Probe-Training">
+          <div className="p-4 space-y-3">
+            <p className="text-sm text-ink-300">
+              Starte eine Simulation, um die Trainings-Ansicht komplett durchzuspielen. Nichts wird gespeichert, nichts landet im Verlauf oder in den Statistiken.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={() => simulate('gym_a')} className="btn-ghost py-3 text-sm">{WORKOUT_TYPE_LABEL.gym_a}</button>
+              <button onClick={() => simulate('gym_b')} className="btn-ghost py-3 text-sm">{WORKOUT_TYPE_LABEL.gym_b}</button>
+              <button onClick={() => simulate('gym_c')} className="btn-ghost py-3 text-sm">{WORKOUT_TYPE_LABEL.gym_c}</button>
+            </div>
           </div>
         </Section>
 
@@ -48,6 +86,48 @@ export default function Settings() {
               <option value="hypertrophy_light">Leichter Muskelaufbau</option>
             </select>
           </Row>
+          <Row>
+            <span>Geschlecht</span>
+            <select
+              className="input max-w-[60%]"
+              value={profile.sex ?? ''}
+              onChange={(e) => saveProfile({ sex: e.target.value ? (e.target.value as 'male' | 'female') : undefined })}
+            >
+              <option value="">—</option>
+              <option value="male">männlich</option>
+              <option value="female">weiblich</option>
+            </select>
+          </Row>
+          <Row>
+            <span>Alter</span>
+            <input
+              type="number" inputMode="numeric" className="input max-w-[30%] text-right"
+              min={10} max={120} placeholder="Jahre"
+              defaultValue={profile.age ?? ''}
+              onBlur={(e) => saveProfile({ age: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </Row>
+          <Row>
+            <span>Gewicht (kg)</span>
+            <input
+              type="number" inputMode="decimal" step="0.1" className="input max-w-[30%] text-right"
+              min={30} max={250} placeholder="kg"
+              defaultValue={profile.weightKg ?? ''}
+              onBlur={(e) => saveProfile({ weightKg: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </Row>
+          <Row>
+            <span>Größe (cm)</span>
+            <input
+              type="number" inputMode="numeric" className="input max-w-[30%] text-right"
+              min={100} max={230} placeholder="cm"
+              defaultValue={profile.heightCm ?? ''}
+              onBlur={(e) => saveProfile({ heightCm: e.target.value ? Number(e.target.value) : undefined })}
+            />
+          </Row>
+          <div className="px-4 py-2 text-[11px] text-ink-400">
+            Wird für die Kalorien-Schätzung genutzt.
+          </div>
         </Section>
 
         <Section title="Programm">
@@ -144,6 +224,19 @@ export default function Settings() {
             </Row>
           </Link>
         </Section>
+      </div>
+
+      {/* Saved toast */}
+      <div
+        aria-live="polite"
+        className={`fixed left-1/2 -translate-x-1/2 bottom-24 pointer-events-none transition-all duration-300 ${toast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+      >
+        <div className="rounded-full bg-accent-500 text-ink-900 px-4 py-2 text-sm font-semibold shadow-soft flex items-center gap-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-4 h-4">
+            <path d="M5 12l5 5 9-9" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Gespeichert
+        </div>
       </div>
     </div>
   );

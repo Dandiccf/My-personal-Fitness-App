@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import BottomSheet from '../components/BottomSheet';
 import NumberStepper from '../components/NumberStepper';
 import RestTimer from '../components/RestTimer';
+import ExerciseIcon from '../components/ExerciseIcon';
+import ExerciseGuide from '../components/ExerciseGuide';
+import { musclesDe } from '../data/labels';
 import { useStore } from '../store/useStore';
 import { EXERCISE_MAP, EXERCISES } from '../data/exercises';
-import { lastPerformance } from '../lib/progression';
+import { lastPerformance, suggestForNextSession } from '../lib/progression';
 import { formatDuration } from '../lib/dateUtils';
 import { WORKOUT_TYPE_LABEL } from '../data/programTemplate';
 
@@ -29,6 +32,7 @@ export default function ActiveSession() {
   const [swapOpen, setSwapOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -39,6 +43,12 @@ export default function ActiveSession() {
   useEffect(() => {
     if (!session) nav('/', { replace: true });
   }, [session, nav]);
+
+  const tabsRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = tabsRef.current?.querySelector<HTMLElement>(`[data-tab-idx="${activeIdx}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }, [activeIdx]);
 
   if (!session) return null;
 
@@ -56,7 +66,20 @@ export default function ActiveSession() {
   const elapsedSec = Math.floor((now - session.startedAt) / 1000);
 
   const exMeta = EXERCISE_MAP[currentVisible.exerciseId];
-  const last = lastPerformance(currentVisible.exerciseId, sessions.filter(s => s.id !== session.id));
+  const otherSessions = sessions.filter(s => s.id !== session.id);
+  const last = lastPerformance(currentVisible.exerciseId, otherSessions);
+  const suggestion = useMemo(
+    () => suggestForNextSession(
+      currentVisible.exerciseId,
+      currentVisible.repMin,
+      currentVisible.repMax,
+      otherSessions,
+      undefined,
+      exMeta?.isIsolation
+    ),
+    [currentVisible.exerciseId, currentVisible.repMin, currentVisible.repMax, otherSessions, exMeta?.isIsolation]
+  );
+  const firstAltName = exMeta?.alternativeIds[0] ? EXERCISE_MAP[exMeta.alternativeIds[0]]?.name : undefined;
 
   const onComplete = (setIdx: number, rest: number) => {
     completeSet(realIdx, setIdx, rest);
@@ -80,7 +103,7 @@ export default function ActiveSession() {
     <div className="min-h-screen pb-44">
       <Header
         title={WORKOUT_TYPE_LABEL[session.workoutType]}
-        subtitle={`${formatDuration(elapsedSec)} · ${doneSets}/${totalSets} Sätze`}
+        subtitle={`${formatDuration(elapsedSec)} · ${doneSets}/${totalSets} Sätze${totalSets > doneSets ? ` · ~${Math.max(0, Math.round(((totalSets - doneSets) * 150) / 60))}m übrig` : ''}`}
         onBack={() => setFinishOpen(true)}
         right={
           <button
@@ -92,6 +115,14 @@ export default function ActiveSession() {
         }
       />
 
+      {/* Simulation-Banner */}
+      {session.isSimulation && (
+        <div className="mx-5 mt-2 rounded-xl border border-warn-500/40 bg-warn-500/10 px-4 py-2.5 text-xs text-warn-500 flex items-center gap-2">
+          <span className="font-semibold">Probe-Training.</span>
+          <span>Nichts wird gespeichert — gefahrlos ausprobieren.</span>
+        </div>
+      )}
+
       {/* progress */}
       <div className="px-5 pt-2 pb-3">
         <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
@@ -100,7 +131,7 @@ export default function ActiveSession() {
       </div>
 
       {/* exercise tabs */}
-      <div className="px-3 pb-2 overflow-x-auto">
+      <div ref={tabsRef} className="px-3 pb-2 overflow-x-auto scroll-smooth">
         <div className="flex gap-2 min-w-full">
           {visibleExercises.map((ex, i) => {
             const d = ex.sets.filter(s => s.completed).length;
@@ -109,8 +140,9 @@ export default function ActiveSession() {
             return (
               <button
                 key={i}
+                data-tab-idx={i}
                 onClick={() => setActiveIdx(i)}
-                className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium border transition ${
+                className={`flex-shrink-0 px-3 py-2 rounded-xl text-xs font-medium border transition whitespace-nowrap ${
                   active ? 'bg-accent-500 text-ink-900 border-accent-500' :
                   ex.skipped ? 'bg-white/5 text-ink-400 border-white/5 line-through' :
                   d === t ? 'bg-accent-500/10 text-accent-400 border-accent-500/30' :
@@ -127,21 +159,33 @@ export default function ActiveSession() {
       {/* current exercise */}
       <div className="px-5 py-3">
         <div className="card p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div className="min-w-0">
-              <div className="label mb-1">
-                {currentVisible.priority === 'main' ? 'Hauptübung' : currentVisible.priority === 'accessory' ? 'Zubehör' : 'Optional'}
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <button
+                onClick={() => setGuideOpen(true)}
+                aria-label="Übungs-Anleitung öffnen"
+                className="w-12 h-12 rounded-xl bg-accent-500/15 text-accent-400 grid place-items-center flex-shrink-0 relative active:bg-accent-500/25"
+              >
+                <ExerciseIcon pattern={currentVisible.movementPattern} className="w-7 h-7" />
+                <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent-500 text-ink-900 text-[11px] font-bold grid place-items-center">?</span>
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="label mb-1">
+                  {currentVisible.priority === 'main' ? 'Hauptübung' : currentVisible.priority === 'accessory' ? 'Nebenübung' : 'Optional'}
+                </div>
+                <button onClick={() => setGuideOpen(true)} className="text-left">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-ink-100 tracking-tight leading-tight">{currentVisible.name}</h2>
+                </button>
+                {exMeta && (
+                  <p className="text-sm text-ink-400 mt-1">
+                    {musclesDe(exMeta.primaryMuscles)}
+                  </p>
+                )}
               </div>
-              <h2 className="text-2xl font-semibold text-ink-100 tracking-tight">{currentVisible.name}</h2>
-              {exMeta && (
-                <p className="text-sm text-ink-400 mt-1">
-                  {exMeta.primaryMuscles.join(' · ')}
-                </p>
-              )}
             </div>
             <button
               onClick={() => setSwapOpen(true)}
-              className="text-xs px-3 py-2 rounded-lg bg-white/5 text-ink-200"
+              className="text-xs px-3 py-2 rounded-lg bg-white/5 text-ink-200 flex-shrink-0"
             >
               Tauschen
             </button>
@@ -152,6 +196,35 @@ export default function ActiveSession() {
               {currentVisible.notes}
             </div>
           )}
+
+          {suggestion.shouldSuggestVariantSwap && firstAltName && (
+            <div className="rounded-xl bg-warn-500/10 border border-warn-500/30 text-warn-500 text-xs px-3 py-2 mb-3 flex items-start gap-2">
+              <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 9v4m0 4h.01M10.3 3.86l-8.15 14a1.9 1.9 0 0 0 1.65 2.84h16.4a1.9 1.9 0 0 0 1.65-2.84l-8.15-14a1.9 1.9 0 0 0-3.4 0z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div>
+                <div className="font-semibold">Stagnation erkannt</div>
+                <div>Seit mehreren Sessions keine Steigerung. Vorschlag: <button onClick={() => setSwapOpen(true)} className="underline">„{firstAltName}" probieren</button>.</div>
+              </div>
+            </div>
+          )}
+
+          {(() => {
+            const firstSet = currentVisible.sets[0];
+            const target = firstSet?.targetWeight;
+            return target != null ? (
+              <div className="rounded-xl bg-accent-500/15 border border-accent-500/30 px-4 py-3 mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-accent-400">Maschine einstellen</div>
+                  <div className="text-xl font-semibold text-accent-400 tabular-nums">{target} kg</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] uppercase tracking-wider text-ink-400">Ziel-Wdh</div>
+                  <div className="text-xl font-semibold text-ink-100 tabular-nums">{currentVisible.repMin}–{currentVisible.repMax}</div>
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           {last && (
             <div className="rounded-xl bg-white/5 px-3 py-2 mb-4 flex items-center justify-between">
@@ -170,7 +243,7 @@ export default function ActiveSession() {
                 targetMin={set.targetRepsMin}
                 targetMax={set.targetRepsMax}
                 weight={set.actualWeight ?? set.targetWeight}
-                reps={set.actualReps}
+                reps={set.actualReps ?? set.targetRepsMax}
                 rir={set.rir}
                 completed={set.completed}
                 disabled={currentVisible.skipped}
@@ -183,11 +256,11 @@ export default function ActiveSession() {
           </div>
 
           <div className="grid grid-cols-3 gap-2 mt-4">
-            <button className="btn-ghost text-sm py-3" onClick={() => addExtraSet(realIdx)}>+ Satz</button>
-            <button className="btn-ghost text-sm py-3" onClick={() => toggleSkipExercise(realIdx)}>
-              {currentVisible.skipped ? 'Wieder aktiv' : 'Übung skip'}
+            <button className="btn-ghost text-sm py-3 whitespace-nowrap" onClick={() => addExtraSet(realIdx)}>+ Satz</button>
+            <button className="btn-ghost text-sm py-3 whitespace-nowrap" onClick={() => toggleSkipExercise(realIdx)}>
+              {currentVisible.skipped ? 'Aktivieren' : 'Skip'}
             </button>
-            <button className="btn-ghost text-sm py-3" onClick={() => setNotesOpen(true)}>Notiz</button>
+            <button className="btn-ghost text-sm py-3 whitespace-nowrap" onClick={() => setNotesOpen(true)}>Notiz</button>
           </div>
         </div>
 
@@ -201,6 +274,8 @@ export default function ActiveSession() {
         <RestTimer initialSec={restSec} onDismiss={() => setRestSec(null)} />
       )}
 
+      <ExerciseGuide open={guideOpen} onClose={() => setGuideOpen(false)} exerciseId={currentVisible.exerciseId} />
+
       <BottomSheet open={swapOpen} onClose={() => setSwapOpen(false)} title="Übung tauschen">
         <div className="space-y-2">
           {alternatives.length === 0 && <p className="text-sm text-ink-400">Keine Alternativen gefunden.</p>}
@@ -213,7 +288,7 @@ export default function ActiveSession() {
               <div>
                 <div className="font-medium text-ink-100">{alt.name}</div>
                 <div className="text-xs text-ink-400">
-                  {alt.primaryMuscles.join(' · ')} · {alt.repRangeMin}–{alt.repRangeMax} Wdh
+                  {musclesDe(alt.primaryMuscles)} · {alt.repRangeMin}–{alt.repRangeMax} Wdh
                 </div>
               </div>
               <span className="text-accent-400 text-sm">Wählen</span>
@@ -304,23 +379,23 @@ function SetRow({
           />
         </div>
       </div>
-      <div className="flex items-center justify-between mt-3">
+      <div className="mt-3 space-y-2.5">
         <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
-          <span>RIR</span>
+          <span className="mr-1">RIR</span>
           {[0,1,2,3].map(v => (
             <button
               key={v}
               onClick={() => onRir(v)}
-              className={`w-7 h-7 rounded-full text-xs font-semibold ${rir === v ? 'bg-accent-500 text-ink-900' : 'bg-white/5 text-ink-200'}`}
+              className={`w-8 h-8 rounded-full text-xs font-semibold ${rir === v ? 'bg-accent-500 text-ink-900' : 'bg-white/5 text-ink-200'}`}
             >{v}</button>
           ))}
         </div>
         <button
           disabled={disabled}
           onClick={onComplete}
-          className={`px-4 py-2.5 rounded-xl text-sm font-semibold ${completed ? 'bg-accent-500/20 text-accent-400' : 'bg-accent-500 text-ink-900'} disabled:opacity-40`}
+          className={`w-full py-3 rounded-xl text-sm font-semibold whitespace-nowrap ${completed ? 'bg-accent-500/20 text-accent-400' : 'bg-accent-500 text-ink-900'} disabled:opacity-40`}
         >
-          {completed ? 'OK' : 'Satz abgeschlossen'}
+          {completed ? '✓ Abgeschlossen' : 'Satz abgeschlossen'}
         </button>
       </div>
     </div>
