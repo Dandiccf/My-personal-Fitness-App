@@ -332,8 +332,22 @@ export default function ActiveSession() {
             onBlur={e => updateActiveSession(s => ({ ...s, notes: e.target.value }))}
           />
           <div className="grid grid-cols-2 gap-3">
-            <button className="btn-danger" onClick={async () => { await cancelSession(); setFinishOpen(false); nav('/'); }}>Verwerfen</button>
-            <button className="btn-primary" onClick={async () => { await finishSession(); setFinishOpen(false); nav('/'); }}>Abschließen</button>
+            <button
+              className="btn-danger"
+              onClick={() => {
+                setFinishOpen(false);
+                nav('/', { replace: true });
+                cancelSession().catch((e) => console.error('cancelSession', e));
+              }}
+            >Verwerfen</button>
+            <button
+              className="btn-primary"
+              onClick={() => {
+                setFinishOpen(false);
+                nav('/', { replace: true });
+                finishSession().catch((e) => console.error('finishSession', e));
+              }}
+            >Abschließen</button>
           </div>
         </div>
       </BottomSheet>
