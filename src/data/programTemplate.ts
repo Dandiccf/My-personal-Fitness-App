@@ -9,10 +9,10 @@ const gymA: WorkoutTemplate = {
     { exerciseId: 'chest_press_machine', priority: 'main',      baseSets: 3, repMin: 6,  repMax: 10, restSec: 110 },
     { exerciseId: 'lat_pulldown_wide',   priority: 'main',      baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
     { exerciseId: 'leg_press',           priority: 'main',      baseSets: 3, repMin: 8,  repMax: 12, restSec: 110 },
-    { exerciseId: 'leg_extension',       priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 75  },
-    { exerciseId: 'triceps_machine',     priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 75  },
-    { exerciseId: 'lateral_raise_machine', priority: 'accessory', baseSets: 2, repMin: 12, repMax: 15, restSec: 60 },
-    { exerciseId: 'calf_raise_seated',   priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 60  },
+    { exerciseId: 'leg_extension',       priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 75  },
+    { exerciseId: 'triceps_machine',     priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 75  },
+    { exerciseId: 'lateral_raise_machine', priority: 'accessory', baseSets: 3, repMin: 12, repMax: 15, restSec: 60 },
+    { exerciseId: 'calf_raise_seated',   priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 60  },
     { exerciseId: 'crunch_machine',      priority: 'optional',  baseSets: 2, repMin: 10, repMax: 15, restSec: 60  }
   ]
 };
@@ -24,12 +24,12 @@ const gymB: WorkoutTemplate = {
   description: 'Ganzkörper – Pull-Schwerpunkt, Beine hamstring-/glute-dominant',
   items: [
     { exerciseId: 'row_machine_low',     priority: 'main',      baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
-    { exerciseId: 'incline_press_machine', priority: 'main',    baseSets: 2, repMin: 8,  repMax: 12, restSec: 90  },
+    { exerciseId: 'incline_press_machine', priority: 'main',    baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
     { exerciseId: 'leg_curl_lying',      priority: 'main',      baseSets: 3, repMin: 10, repMax: 15, restSec: 75  },
-    { exerciseId: 'glute_drive',         priority: 'accessory', baseSets: 2, repMin: 8,  repMax: 12, restSec: 90  },
-    { exerciseId: 'reverse_pec_deck',    priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 60  },
-    { exerciseId: 'biceps_machine',      priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 75  },
-    { exerciseId: 'rope_pushdown',       priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 60  },
+    { exerciseId: 'glute_drive',         priority: 'accessory', baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
+    { exerciseId: 'reverse_pec_deck',    priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 60  },
+    { exerciseId: 'biceps_machine',      priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 75  },
+    { exerciseId: 'rope_pushdown',       priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 60  },
     { exerciseId: 'plank',               priority: 'optional',  baseSets: 2, repMin: 30, repMax: 60, restSec: 45  }
   ]
 };
@@ -43,10 +43,10 @@ const gymC: WorkoutTemplate = {
     { exerciseId: 'lat_pulldown_neutral', priority: 'main',     baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
     { exerciseId: 'chest_supported_row', priority: 'main',      baseSets: 3, repMin: 8,  repMax: 12, restSec: 90  },
     { exerciseId: 'hack_squat',          priority: 'main',      baseSets: 3, repMin: 8,  repMax: 12, restSec: 120 },
-    { exerciseId: 'leg_curl_seated',     priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 75  },
-    { exerciseId: 'cable_chest_press',   priority: 'accessory', baseSets: 2, repMin: 10, repMax: 12, restSec: 90  },
-    { exerciseId: 'cable_lateral_raise', priority: 'accessory', baseSets: 2, repMin: 12, repMax: 15, restSec: 60  },
-    { exerciseId: 'calf_raise_standing', priority: 'accessory', baseSets: 2, repMin: 10, repMax: 15, restSec: 60  },
+    { exerciseId: 'leg_curl_seated',     priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 75  },
+    { exerciseId: 'cable_chest_press',   priority: 'accessory', baseSets: 3, repMin: 10, repMax: 12, restSec: 90  },
+    { exerciseId: 'cable_lateral_raise', priority: 'accessory', baseSets: 3, repMin: 12, repMax: 15, restSec: 60  },
+    { exerciseId: 'calf_raise_standing', priority: 'accessory', baseSets: 3, repMin: 10, repMax: 15, restSec: 60  },
     { exerciseId: 'cable_crunch',        priority: 'optional',  baseSets: 2, repMin: 10, repMax: 15, restSec: 60  }
   ]
 };

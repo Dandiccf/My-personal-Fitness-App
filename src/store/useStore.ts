@@ -29,8 +29,10 @@ import {
   complianceFromHistory,
   compliancePenalty,
   applyRecoveryScaling,
+  deloadWeightMultiplier,
 } from "../lib/volumeEngine";
 import { suggestForNextSession } from "../lib/progression";
+import { estimateStartingWeight } from "../lib/startingWeight";
 import { todayISO } from "../lib/dateUtils";
 
 interface StoreState {
@@ -53,6 +55,7 @@ interface StoreState {
   setPreferredSwap: (exerciseId: string, variantId: string | null) => Promise<void>;
 
   skipToday: (workoutType: WorkoutType, reason?: string) => Promise<Session>;
+  startSimulation: (workoutType: WorkoutType) => Session;
 
   // session flow
   startSession: (workoutType: WorkoutType, recovery?: RecoveryCheck, quickMode?: boolean) => Promise<Session>;
@@ -249,11 +252,61 @@ export const useStore = create<StoreState>((set, get) => ({
     return session;
   },
 
+  startSimulation(workoutType) {
+    const { settings, sessions } = get();
+    const s = settings ?? defaultSettings();
+    const ctx = computeWeekContext(s.programStartDate, new Date(), s.blockWeeks);
+    const compliance = complianceFromHistory(sessions, PROGRAM, new Date(), s.programStartDate);
+    const penalty = compliancePenalty(compliance);
+
+    const template = PROGRAM.workoutTemplates[workoutType];
+    let scheduled = buildScheduledSets(template, ctx, penalty);
+
+    scheduled = scheduled.map((set) => {
+      const pref = s.preferredSwaps[set.exerciseId];
+      if (pref && EXERCISE_MAP[pref]) return { ...set, exerciseId: pref };
+      return set;
+    });
+
+    const exercises: ExercisePerformance[] = scheduledToExercises(
+      scheduled,
+      (id) => EXERCISE_MAP[id]?.name ?? id,
+      (id) => EXERCISE_MAP[id]?.movementPattern ?? "core",
+    );
+
+    const profile = get().profile;
+    for (const ex of exercises) {
+      const exMeta = EXERCISE_MAP[ex.exerciseId];
+      const suggestion = suggestForNextSession(
+        ex.exerciseId, ex.repMin, ex.repMax, sessions, undefined, exMeta?.isIsolation
+      );
+      const tw = suggestion.suggestedWeight ?? (exMeta ? estimateStartingWeight(exMeta, profile) : null);
+      ex.sets = ex.sets.map((st) => ({ ...st, targetWeight: tw }));
+    }
+
+    const sim: Session = {
+      id: newId("sim"),
+      date: todayISO(),
+      weekIndex: ctx.weekInBlock,
+      blockIndex: ctx.blockIndex,
+      workoutType,
+      startedAt: Date.now(),
+      completed: false,
+      isSimulation: true,
+      quickModeUsed: false,
+      exercises,
+      notes: "Simulation — wird nicht gespeichert",
+    };
+
+    set({ activeSession: sim, activeExerciseIndex: 0 });
+    return sim;
+  },
+
   async startSession(workoutType, recovery, quickMode = false) {
     const { settings, sessions } = get();
     const s = settings ?? defaultSettings();
     const ctx = computeWeekContext(s.programStartDate, new Date(), s.blockWeeks);
-    const compliance = complianceFromHistory(sessions, PROGRAM, new Date());
+    const compliance = complianceFromHistory(sessions, PROGRAM, new Date(), s.programStartDate);
     const penalty = compliancePenalty(compliance);
 
     const template = PROGRAM.workoutTemplates[workoutType];
@@ -289,6 +342,7 @@ export const useStore = create<StoreState>((set, get) => ({
     );
 
     // Apply progression suggestions as "target weight"
+    const profile = get().profile;
     for (const ex of exercises) {
       const exMeta = EXERCISE_MAP[ex.exerciseId];
       const suggestion = suggestForNextSession(
@@ -299,10 +353,22 @@ export const useStore = create<StoreState>((set, get) => ({
         undefined,
         exMeta?.isIsolation,
       );
-      const tw = suggestion.suggestedWeight;
+      // Deload-Faktor: in W7/W12 ~10 % weniger Last empfehlen
+      const deloadFactor = deloadWeightMultiplier(ctx);
+      let tw = suggestion.suggestedWeight;
+      // Erste Session ohne Historie → konservative Schätzung aus Körpergewicht
+      if (tw == null && exMeta) {
+        tw = estimateStartingWeight(exMeta, profile);
+      }
+      if (tw != null && deloadFactor < 1) {
+        // Auf 0,5 kg runden damit Einstellungen an Maschinen passen
+        tw = Math.round((tw * deloadFactor) / 0.5) * 0.5;
+      }
       ex.sets = ex.sets.map((st) => ({ ...st, targetWeight: tw }));
       if (suggestion.reason) {
         ex.notes = suggestion.reason;
+      } else if (tw != null && !suggestion.lastWeight) {
+        ex.notes = `Start-Schätzung ${tw} kg. Beim ersten Satz anpassen falls zu leicht/schwer.`;
       }
     }
 
@@ -348,10 +414,14 @@ export const useStore = create<StoreState>((set, get) => ({
     const active = get().activeSession;
     if (!active) return;
     const next = updater(active);
-    await db.putSession(next);
+    if (!active.isSimulation) {
+      await db.putSession(next);
+    }
     set((state) => ({
       activeSession: next,
-      sessions: state.sessions.map((s) => (s.id === next.id ? next : s)),
+      sessions: active.isSimulation
+        ? state.sessions
+        : state.sessions.map((s) => (s.id === next.id ? next : s)),
     }));
   },
 
@@ -449,6 +519,11 @@ export const useStore = create<StoreState>((set, get) => ({
   async finishSession() {
     const active = get().activeSession;
     if (!active) return;
+    if (active.isSimulation) {
+      // Probe-Session: nicht speichern, nur zurücksetzen
+      set({ activeSession: null, activeExerciseIndex: 0 });
+      return;
+    }
     const done: Session = {
       ...active,
       completed: true,
@@ -466,6 +541,10 @@ export const useStore = create<StoreState>((set, get) => ({
   async cancelSession() {
     const active = get().activeSession;
     if (!active) return;
+    if (active.isSimulation) {
+      set({ activeSession: null, activeExerciseIndex: 0 });
+      return;
+    }
     // If no sets were completed, delete the draft; otherwise save as incomplete.
     const anyCompleted = active.exercises.some((e) => e.sets.some((s) => s.completed));
     if (!anyCompleted) {

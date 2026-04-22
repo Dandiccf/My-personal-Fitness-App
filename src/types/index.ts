@@ -132,6 +132,7 @@ export interface Session {
   completed: boolean;
   skipped?: boolean; // Nutzer hat den Trainingstag bewusst übersprungen
   skipReason?: string;
+  isSimulation?: boolean; // Probe-Session — nicht persistiert, nicht in Verlauf/Stats
   quickModeUsed: boolean;
   recovery?: RecoveryCheck;
   perceivedEnergy?: number; // 1-5
@@ -162,6 +163,11 @@ export interface UserProfile {
   goal: "reentry" | "maintain" | "hypertrophy_light";
   experience: "returner" | "intermediate" | "advanced";
   weightUnit: "kg" | "lb";
+  // Vitaldaten für kcal-Schätzung (optional)
+  weightKg?: number;
+  heightCm?: number;
+  age?: number;
+  sex?: "male" | "female";
   createdAt: number;
 }
 

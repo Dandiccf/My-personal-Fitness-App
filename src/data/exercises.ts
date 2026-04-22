@@ -36,7 +36,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'converging_chest_press',
-    name: 'Converging Chest Press',
+    name: 'Konvergierende Brustpresse',
     movementPattern: 'horizontal_push',
     primaryMuscles: ['chest'],
     secondaryMuscles: ['shoulders', 'triceps'],
@@ -66,7 +66,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'smith_bench',
-    name: 'Smith-Machine Press',
+    name: 'Multipresse Bankdrücken',
     movementPattern: 'horizontal_push',
     primaryMuscles: ['chest'],
     secondaryMuscles: ['shoulders', 'triceps'],
@@ -144,7 +144,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'high_row_machine',
-    name: 'High Row Maschine',
+    name: 'Hochzug-Maschine',
     movementPattern: 'vertical_pull',
     primaryMuscles: ['lats', 'back'],
     secondaryMuscles: ['rear_delts', 'biceps'],
@@ -177,7 +177,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'chest_supported_row',
-    name: 'Chest-supported Row',
+    name: 'Rudern brustgestützt',
     movementPattern: 'horizontal_pull',
     primaryMuscles: ['back', 'lats'],
     secondaryMuscles: ['biceps', 'rear_delts'],
@@ -207,7 +207,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'plate_loaded_row',
-    name: 'Plate-loaded Row',
+    name: 'Hantelscheiben-Rudern',
     movementPattern: 'horizontal_pull',
     primaryMuscles: ['back', 'lats'],
     secondaryMuscles: ['biceps'],
@@ -239,7 +239,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'hack_squat',
-    name: 'Hack Squat Maschine',
+    name: 'Hack-Kniebeuge Maschine',
     movementPattern: 'squat',
     primaryMuscles: ['quads', 'glutes'],
     secondaryMuscles: ['hamstrings'],
@@ -254,7 +254,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'pendulum_squat',
-    name: 'Pendulum Squat',
+    name: 'Pendel-Kniebeuge',
     movementPattern: 'squat',
     primaryMuscles: ['quads', 'glutes'],
     secondaryMuscles: ['hamstrings'],
@@ -269,7 +269,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'smith_squat',
-    name: 'Smith-Squat',
+    name: 'Multipresse-Kniebeuge',
     movementPattern: 'squat',
     primaryMuscles: ['quads', 'glutes'],
     secondaryMuscles: ['hamstrings'],
@@ -284,7 +284,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'belt_squat',
-    name: 'Belt Squat',
+    name: 'Gurtkniebeuge',
     movementPattern: 'squat',
     primaryMuscles: ['quads', 'glutes'],
     secondaryMuscles: ['hamstrings'],
@@ -309,7 +309,7 @@ export const EXERCISES: Exercise[] = [
     repRangeMin: 10,
     repRangeMax: 15,
     defaultRestSec: 75,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['single_leg_extension', 'sissy_squat_machine'],
     isIsolation: true,
     enabled: true
@@ -331,7 +331,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'sissy_squat_machine',
-    name: 'Sissy Squat Maschine',
+    name: 'Sissy-Squat-Maschine',
     movementPattern: 'quad_iso',
     primaryMuscles: ['quads'],
     secondaryMuscles: [],
@@ -378,7 +378,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'nordic_curl_assisted',
-    name: 'Nordic Curl assistiert',
+    name: 'Nordic-Hamstring assistiert',
     movementPattern: 'hamstring_iso',
     primaryMuscles: ['hamstrings'],
     secondaryMuscles: ['glutes'],
@@ -393,7 +393,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'glute_ham_machine',
-    name: 'Glute-Ham Maschine',
+    name: 'Glute-Ham-Raise Maschine',
     movementPattern: 'hamstring_iso',
     primaryMuscles: ['hamstrings', 'glutes'],
     secondaryMuscles: [],
@@ -408,7 +408,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'glute_drive',
-    name: 'Glute Drive',
+    name: 'Hüftstreck-Maschine',
     movementPattern: 'hinge',
     primaryMuscles: ['glutes'],
     secondaryMuscles: ['hamstrings'],
@@ -438,7 +438,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'reverse_hyper',
-    name: 'Reverse Hyper',
+    name: 'Reverse Hyperextension',
     movementPattern: 'hinge',
     primaryMuscles: ['glutes', 'hamstrings'],
     secondaryMuscles: ['back'],
@@ -453,7 +453,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'rdl_machine',
-    name: 'Romanian Deadlift Maschine',
+    name: 'Rumänisches Kreuzheben Maschine',
     movementPattern: 'hinge',
     primaryMuscles: ['hamstrings', 'glutes'],
     secondaryMuscles: ['back'],
@@ -470,15 +470,15 @@ export const EXERCISES: Exercise[] = [
   // --- Rear delt / upper back ---
   {
     id: 'reverse_pec_deck',
-    name: 'Reverse Pec Deck',
+    name: 'Reverse Butterfly',
     movementPattern: 'rear_delt',
-    primaryMuscles: ['rear_delts', 'back'],
-    secondaryMuscles: [],
+    primaryMuscles: ['rear_delts'],
+    secondaryMuscles: ['back'],
     equipmentType: 'machine',
     repRangeMin: 10,
     repRangeMax: 15,
     defaultRestSec: 60,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['face_pull_cable', 'high_row_machine'],
     isIsolation: true,
     enabled: true
@@ -487,8 +487,8 @@ export const EXERCISES: Exercise[] = [
     id: 'face_pull_cable',
     name: 'Face Pull am Kabel',
     movementPattern: 'rear_delt',
-    primaryMuscles: ['rear_delts', 'back'],
-    secondaryMuscles: [],
+    primaryMuscles: ['rear_delts'],
+    secondaryMuscles: ['back'],
     equipmentType: 'cable',
     repRangeMin: 12,
     repRangeMax: 15,
@@ -510,7 +510,7 @@ export const EXERCISES: Exercise[] = [
     repRangeMin: 12,
     repRangeMax: 15,
     defaultRestSec: 60,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['cable_lateral_raise', 'db_lateral_raise'],
     isIsolation: true,
     enabled: true
@@ -525,7 +525,7 @@ export const EXERCISES: Exercise[] = [
     repRangeMin: 12,
     repRangeMax: 15,
     defaultRestSec: 60,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['lateral_raise_machine'],
     isIsolation: true,
     enabled: true
@@ -557,14 +557,14 @@ export const EXERCISES: Exercise[] = [
     repRangeMin: 10,
     repRangeMax: 15,
     defaultRestSec: 75,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['rope_pushdown', 'v_bar_pushdown', 'overhead_rope_ext', 'dip_machine'],
     isIsolation: true,
     enabled: true
   },
   {
     id: 'rope_pushdown',
-    name: 'Rope Pushdown',
+    name: 'Seilzug Trizepsdrücken',
     movementPattern: 'triceps',
     primaryMuscles: ['triceps'],
     secondaryMuscles: [],
@@ -579,7 +579,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'v_bar_pushdown',
-    name: 'V-Bar Pushdown',
+    name: 'V-Griff Trizepsdrücken',
     movementPattern: 'triceps',
     primaryMuscles: ['triceps'],
     secondaryMuscles: [],
@@ -594,7 +594,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'overhead_rope_ext',
-    name: 'Overhead Rope Extension',
+    name: 'Seil Trizepsstrecken über Kopf',
     movementPattern: 'triceps',
     primaryMuscles: ['triceps'],
     secondaryMuscles: [],
@@ -609,7 +609,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'dip_machine',
-    name: 'Dip Maschine assistiert',
+    name: 'Dip-Maschine assistiert',
     movementPattern: 'triceps',
     primaryMuscles: ['triceps', 'chest'],
     secondaryMuscles: ['shoulders'],
@@ -634,7 +634,7 @@ export const EXERCISES: Exercise[] = [
     repRangeMin: 10,
     repRangeMax: 15,
     defaultRestSec: 75,
-    defaultSets: 2,
+    defaultSets: 3,
     alternativeIds: ['scott_machine', 'cable_curl', 'rope_curl', 'db_curl'],
     isIsolation: true,
     enabled: true
@@ -733,7 +733,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'leg_press_calf',
-    name: 'Leg Press Calf Raise',
+    name: 'Wadenheben an der Beinpresse',
     movementPattern: 'calves',
     primaryMuscles: ['calves'],
     secondaryMuscles: [],
@@ -780,7 +780,7 @@ export const EXERCISES: Exercise[] = [
   },
   {
     id: 'plank',
-    name: 'Plank',
+    name: 'Unterarmstütz',
     movementPattern: 'core',
     primaryMuscles: ['core'],
     secondaryMuscles: [],

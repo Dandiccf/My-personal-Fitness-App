@@ -1,7 +1,19 @@
 // Volumen-/Blocksteuerung.
 // Berechnet pro Woche die effektive Satzzahl pro Übung und ob Deload gilt.
 
-import type { ProgramTemplate, WorkoutTemplate, WorkoutTemplateItem, Session, ExercisePerformance } from '../types';
+import type { MuscleGroup, ProgramTemplate, WorkoutTemplate, WorkoutTemplateItem, Session, ExercisePerformance } from '../types';
+import { EXERCISE_MAP } from '../data/exercises';
+
+// Muskelgruppen, die laut Spec im Block bevorzugt aufgestockt werden
+// ("Rücken und Beine dürfen solide priorisiert sein").
+const PRIORITY_MUSCLES: MuscleGroup[] = ['back', 'lats', 'quads', 'hamstrings', 'glutes'];
+
+/** Ob eine Übung zu einer priorisierten Muskelgruppe gehört. */
+export function isPrioritizedExercise(exerciseId: string): boolean {
+  const ex = EXERCISE_MAP[exerciseId];
+  if (!ex) return false;
+  return ex.primaryMuscles.some((m) => PRIORITY_MUSCLES.includes(m));
+}
 
 export interface WeekContext {
   blockIndex: number;
@@ -26,8 +38,11 @@ const WEEK_MS = 7 * 86_400_000;
 export function computeWeekContext(programStartISO: string, today: Date, blockWeeks: number): WeekContext {
   const [y, m, d] = programStartISO.split('-').map(Number);
   const start = new Date(y, m - 1, d);
-  // anchor to Monday of start week
   start.setHours(0, 0, 0, 0);
+  // Anker auf Montag der Startwoche — sonst Off-by-one bei künftigen Wochen,
+  // wenn programStart nicht selbst ein Montag ist.
+  const startDow = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - startDow);
 
   const mondayOfToday = new Date(today);
   mondayOfToday.setHours(0, 0, 0, 0);
@@ -111,43 +126,70 @@ function phaseForWeek(weekInBlock: number, blockIndex: number): WeekContext {
   };
 }
 
-/** Compute how many sets to actually perform for a template item in this week. */
-export function effectiveSets(item: WorkoutTemplateItem, ctx: WeekContext, compliancePenalty = 0): number {
-  // base progression per priority:
-  // main:      W1:2, W2:2, W3:3, W4:3, W5:3, W6:3, W7:2(deload), W8-10:3, W11:4, W12:2
-  // accessory: W1:1, W2:2, W3:2, W4:2, W5:2, W6:3 (selectively), W7:1, W8-10:2-3, W11:3, W12:1
-  // optional:  always 1, deload 1, peak 2
+export interface EffectiveSetsOptions {
+  /** Übung gehört zur priorisierten Muskelgruppe (Rücken/Beine) */
+  prioritized?: boolean;
+  /** Nutzer ist gut erholt/compliant → W11 Peak-Bump erlauben */
+  recoveryGood?: boolean;
+}
+
+/**
+ * Satzanzahl pro Woche für eine Übung gemäß dem 12-Wochen-Block:
+ *
+ *  W1       Re-Entry           Main 2  · Accessory 1  · Optional 1
+ *  W2       Re-Entry           Main 2  · Accessory max(1,base-1) · Optional 1
+ *  W3-4     Aufbau             Main 3  · Accessory base · Optional 1
+ *  W5-6     Aufbau+            priorisierte Hauptübungen +1 Satz (Rücken/Beine)
+ *                              priorisierte Accessory +1 Satz, Rest bleibt
+ *  W7       Deload ~55 %       Main 2  · Accessory 1  · Optional 0
+ *  W8-10    Aufbau Block 2     Main 3  · Accessory base · Optional 1
+ *  W11      Peak               nur bei guter Erholung Hauptübung +1 (priorisiert)
+ *  W12      Reset              Main 2  · Accessory 1  · Optional 0
+ */
+export function effectiveSets(
+  item: WorkoutTemplateItem,
+  ctx: WeekContext,
+  compliancePenalty = 0,
+  options: EffectiveSetsOptions = {}
+): number {
   const wk = ctx.weekInBlock;
+  const prioritized = options.prioritized ?? isPrioritizedExercise(item.exerciseId);
+  const recoveryGood = options.recoveryGood ?? (compliancePenalty === 0);
+
   let base = item.baseSets;
 
   if (item.priority === 'main') {
-    base = wk <= 2 ? 2
-         : wk <= 4 ? 3
-         : wk <= 6 ? 3
-         : wk === 7 ? 2
-         : wk <= 10 ? 3
-         : wk === 11 ? Math.max(3, item.baseSets + 1)
-         : 2;
+    if (wk <= 2) base = 2;
+    else if (wk <= 4) base = 3;
+    else if (wk <= 6) base = prioritized ? 4 : 3;
+    else if (wk === 7) base = 2;
+    else if (wk <= 10) base = 3;
+    else if (wk === 11) base = (recoveryGood && prioritized) ? 4 : 3;
+    else base = 2; // W12 Reset
   } else if (item.priority === 'accessory') {
-    base = wk <= 1 ? Math.max(1, item.baseSets - 1)
-         : wk <= 4 ? item.baseSets
-         : wk <= 6 ? item.baseSets // (wir bevorzugen gezieltes Hochfahren über die Regel-Engine unten)
-         : wk === 7 ? Math.max(1, item.baseSets - 1)
-         : wk <= 10 ? item.baseSets
-         : wk === 11 ? item.baseSets + 1
-         : Math.max(1, item.baseSets - 1);
+    // Spec: priorisierter Volumen-Bump gilt nur für Hauptübungen, nicht für Nebenübung.
+    if (wk <= 1) base = Math.max(1, item.baseSets - 1);
+    else if (wk <= 6) base = item.baseSets;
+    else if (wk === 7) base = Math.max(1, Math.floor(item.baseSets / 2));
+    else if (wk <= 10) base = item.baseSets;
+    else if (wk === 11) base = item.baseSets;
+    else base = Math.max(1, Math.floor(item.baseSets / 2)); // W12 Reset
   } else {
-    base = wk === 7 || wk === 12 ? 1
-         : wk === 11 ? Math.max(2, item.baseSets)
-         : 1;
+    // optional
+    if (wk === 7 || wk === 12) base = 0;
+    else if (wk === 11) base = Math.max(2, item.baseSets);
+    else base = 1;
   }
 
-  // Compliance penalty: if user missed several sessions recently, don't raise volume.
+  // Compliance-Strafe: Hauptübungen bleiben bei mind. 1 Satz, Accessory/Optional dürfen auf 0 fallen.
   if (compliancePenalty > 0) {
-    base = Math.max(1, base - compliancePenalty);
+    const floor = item.priority === 'main' ? 1 : 0;
+    base = Math.max(floor, base - compliancePenalty);
   }
 
-  return Math.max(1, base);
+  // Nicht-negative Grenze
+  const floor = item.priority === 'main' ? 1 : 0;
+  return Math.max(floor, base);
 }
 
 /** Recovery-based scaling applied right before a session. */
@@ -219,16 +261,46 @@ export function buildScheduledSets(
   return sets;
 }
 
-/** Compliance = #gym-sessions completed in the last 2 full weeks / expected. */
-export function complianceFromHistory(sessions: Session[], program: ProgramTemplate, today: Date): number {
+/** Faktor für das Ziel-Arbeitsgewicht — in Deload-Wochen etwas reduzieren. */
+export function deloadWeightMultiplier(ctx: WeekContext): number {
+  return ctx.isDeload ? 0.9 : 1.0;
+}
+
+/**
+ * Compliance = tatsächlich absolvierte Gym-Sessions / erwartete Sessions seit Programmstart,
+ * begrenzt auf die letzten 14 Tage. Für brandneue Nutzer gibt es eine 7-tägige Schonfrist.
+ */
+export function complianceFromHistory(
+  sessions: Session[],
+  program: ProgramTemplate,
+  today: Date,
+  programStartISO?: string
+): number {
   const expectedPerWeek = program.schedule.filter(d =>
     d.workoutType === 'gym_a' || d.workoutType === 'gym_b' || d.workoutType === 'gym_c'
   ).length;
-  const twoWeeksAgo = new Date(today.getTime() - 14 * 86_400_000);
-  const done = sessions.filter(s => s.completed && new Date(s.startedAt) >= twoWeeksAgo).length;
-  const expected = expectedPerWeek * 2;
-  if (expected === 0) return 1;
-  return Math.min(1, done / expected);
+  if (expectedPerWeek === 0) return 1;
+
+  const twoWeeksAgoMs = today.getTime() - 14 * 86_400_000;
+  let effectiveStartMs = twoWeeksAgoMs;
+
+  // Wenn Programm weniger als 14 Tage läuft, nur ab Start messen
+  if (programStartISO) {
+    const [y, m, d] = programStartISO.split('-').map(Number);
+    const startMs = new Date(y, m - 1, d).getTime();
+    if (startMs > effectiveStartMs) effectiveStartMs = startMs;
+  }
+
+  // Schonfrist: erste Woche immer 100 %
+  const daysSinceEffectiveStart = Math.max(0, (today.getTime() - effectiveStartMs) / 86_400_000);
+  if (daysSinceEffectiveStart < 7) return 1;
+
+  const done = sessions.filter(
+    s => s.completed && !s.skipped && s.startedAt >= effectiveStartMs
+  ).length;
+  const expectedInPeriod = expectedPerWeek * (daysSinceEffectiveStart / 7);
+  if (expectedInPeriod <= 0) return 1;
+  return Math.min(1, done / expectedInPeriod);
 }
 
 /** 0 = perfect compliance, 1 = penalty one set, 2 = penalty two sets */
