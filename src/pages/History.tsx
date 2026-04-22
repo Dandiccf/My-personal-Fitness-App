@@ -4,12 +4,14 @@ import Header from '../components/Header';
 import { useStore } from '../store/useStore';
 import { WORKOUT_TYPE_LABEL } from '../data/programTemplate';
 import { formatFullDate, formatMinutes } from '../lib/dateUtils';
+import { estimateCardioKcal, estimateSessionKcal } from '../lib/calories';
 
 type Tab = 'gym' | 'cardio';
 
 export default function History() {
   const sessions = useStore(s => s.sessions);
   const cardio = useStore(s => s.cardio);
+  const profile = useStore(s => s.profile);
   const deleteCardio = useStore(s => s.deleteCardio);
   const deleteSession = useStore(s => s.deleteSession);
   const [tab, setTab] = useState<Tab>('gym');
@@ -62,10 +64,10 @@ export default function History() {
                   <div>
                     <div className="text-ink-100 font-semibold">{WORKOUT_TYPE_LABEL[s.workoutType]}</div>
                     <div className="text-xs text-ink-400 mt-0.5">{formatFullDate(s.date)}</div>
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex gap-2 flex-wrap">
                       <span className="chip">{doneSets}/{totalSets} Sätze</span>
                       <span className="chip">{formatMinutes(Math.round((s.durationSec ?? 0) / 60))}</span>
-                      <span className="chip">{Math.round(volume)} kg·W</span>
+                      <span className="chip">~{estimateSessionKcal(s, profile)} kcal</span>
                     </div>
                   </div>
                   <span className="text-accent-400 text-xl">›</span>
@@ -89,6 +91,7 @@ export default function History() {
                     {c.distanceKm != null && <span className="chip">{c.distanceKm} km</span>}
                     {c.avgPace && <span className="chip">{c.avgPace}/km</span>}
                     {c.rpe != null && <span className="chip">RPE {c.rpe}</span>}
+                    <span className="chip">~{estimateCardioKcal(c, profile)} kcal</span>
                   </div>
                   {c.notes && <div className="text-xs text-ink-300 mt-2 italic">{c.notes}</div>}
                 </div>

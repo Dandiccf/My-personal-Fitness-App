@@ -3,10 +3,13 @@ import Header from '../components/Header';
 import { useStore } from '../store/useStore';
 import { WORKOUT_TYPE_LABEL } from '../data/programTemplate';
 import { formatFullDate, formatMinutes } from '../lib/dateUtils';
+import { estimateSessionKcal } from '../lib/calories';
+import { PATTERN_LABEL_DE } from '../data/labels';
 
 export default function SessionDetail() {
   const { id } = useParams();
   const sessions = useStore(s => s.sessions);
+  const profile = useStore(s => s.profile);
   const deleteSession = useStore(s => s.deleteSession);
   const nav = useNavigate();
   const s = sessions.find(x => x.id === id);
@@ -28,9 +31,10 @@ export default function SessionDetail() {
     <div>
       <Header title={WORKOUT_TYPE_LABEL[s.workoutType]} subtitle={formatFullDate(s.date)} onBack />
       <div className="px-5 py-4 space-y-4">
-        <div className="card p-5 grid grid-cols-3 gap-3">
+        <div className="card p-5 grid grid-cols-4 gap-3">
           <Stat label="Dauer" value={formatMinutes(Math.round((s.durationSec ?? 0) / 60))} />
-          <Stat label="Volumen" value={`${Math.round(totalVolume)} kg·W`} />
+          <Stat label="Volumen" value={`${Math.round(totalVolume)}`} />
+          <Stat label="kcal" value={`~${estimateSessionKcal(s, profile)}`} />
           <Stat label="Woche" value={`${s.weekIndex}`} />
         </div>
         {s.notes && <div className="card p-4 text-sm text-ink-200 italic">„{s.notes}"</div>}
@@ -40,7 +44,7 @@ export default function SessionDetail() {
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="font-semibold text-ink-100">{ex.name}</div>
-                <div className="text-xs text-ink-400 capitalize">{ex.movementPattern.replace('_', ' ')}</div>
+                <div className="text-xs text-ink-400">{PATTERN_LABEL_DE[ex.movementPattern] ?? ex.movementPattern}</div>
               </div>
               {ex.skipped && <span className="chip-danger">Skipped</span>}
               {ex.removedByQuickMode && <span className="chip-warn">Quick Mode</span>}

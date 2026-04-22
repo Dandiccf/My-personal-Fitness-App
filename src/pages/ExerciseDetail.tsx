@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import Header from '../components/Header';
 import { useStore } from '../store/useStore';
 import { EXERCISE_MAP } from '../data/exercises';
+import { musclesDe } from '../data/labels';
 import { exerciseHistory } from '../lib/progression';
 import MiniSparkline from '../components/MiniSparkline';
 
@@ -25,7 +26,7 @@ export default function ExerciseDetail() {
 
   return (
     <div>
-      <Header title={ex.name} subtitle={ex.primaryMuscles.join(' · ')} onBack />
+      <Header title={ex.name} subtitle={musclesDe(ex.primaryMuscles)} onBack />
       <div className="px-5 py-4 space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <Kpi label="Best kg" value={String(history.bestWeightEver || '–')} />

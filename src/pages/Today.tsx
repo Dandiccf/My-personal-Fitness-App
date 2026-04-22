@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { PROGRAM, WORKOUT_TYPE_LABEL } from '../data/programTemplate';
+import { EXERCISE_MAP } from '../data/exercises';
 import { computeWeekContext, buildScheduledSets, complianceFromHistory, compliancePenalty } from '../lib/volumeEngine';
 import { formatMinutes, weekdayIndex, formatFullDate, todayISO } from '../lib/dateUtils';
 import type { RecoveryCheck, WorkoutType } from '../types';
@@ -25,21 +26,44 @@ export default function Today() {
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const [pendingType, setPendingType] = useState<WorkoutType | null>(null);
   const [quickMode, setQuickMode] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideType, setOverrideType] = useState<WorkoutType | null>(null);
 
   const today = new Date();
   const ctx = useMemo(
     () => computeWeekContext(settings!.programStartDate, today, settings!.blockWeeks),
     [settings?.programStartDate, settings?.blockWeeks]
   );
-  const compliance = useMemo(() => complianceFromHistory(sessions, PROGRAM, today), [sessions]);
+  const compliance = useMemo(
+    () => complianceFromHistory(sessions, PROGRAM, today, settings?.programStartDate),
+    [sessions, settings?.programStartDate]
+  );
   const penalty = compliancePenalty(compliance);
 
   const dow = weekdayIndex(today);
   const scheduled = PROGRAM.schedule.find(d => d.dayOfWeek === dow)!;
-  const workoutType = scheduled.workoutType;
+  const scheduledType = scheduled.workoutType;
+  const workoutType: WorkoutType = overrideType ?? scheduledType;
+  const isOverridden = overrideType != null && overrideType !== scheduledType;
   const template = PROGRAM.workoutTemplates[workoutType];
   const scheduledSets = useMemo(() => buildScheduledSets(template, ctx, penalty), [template, ctx, penalty]);
   const estimatedMin = estimateDurationMin(scheduledSets.length);
+
+  // Quick Mode Preview — welche Übungen fallen weg
+  const quickModeCuts = useMemo(() => {
+    if (!quickMode || !workoutType.startsWith('gym')) return [] as string[];
+    const items = template.items;
+    // analog zum Store: bis zu 3 entfernen, beginnend mit optional, dann accessory vom Ende
+    const cuts: string[] = [];
+    const optionals = items.filter(i => i.priority === 'optional');
+    const accessories = items.filter(i => i.priority === 'accessory');
+    for (const i of optionals.slice().reverse()) { if (cuts.length < 3) cuts.push(i.exerciseId); }
+    for (const i of accessories.slice().reverse()) { if (cuts.length < 3) cuts.push(i.exerciseId); }
+    return cuts.slice(0, 3).map(id => EXERCISE_MAP[id]?.name ?? id);
+  }, [quickMode, workoutType, template]);
+
+  // Block-Wechsel: Hinweis in W1 eines neuen Blocks und W8 (Start Block-2-Aufbau)
+  const showBlockVariationHint = (ctx.blockIndex > 0 && ctx.weekInBlock === 1) || ctx.weekInBlock === 8;
 
   const isGym = workoutType === 'gym_a' || workoutType === 'gym_b' || workoutType === 'gym_c';
   const isCardio = workoutType === 'run_easy' || workoutType === 'run_long' || workoutType === 'mtb';
@@ -91,15 +115,50 @@ export default function Today() {
           </div>
         </div>
 
+        {/* Hinweis-Banner */}
+        {ctx.isDeload && (
+          <div className="rounded-2xl border border-warn-500/30 bg-warn-500/5 px-4 py-3 flex items-start gap-3">
+            <span className="text-warn-500 text-xl leading-none">↓</span>
+            <div className="text-sm text-warn-500/90">
+              <span className="font-semibold">Deload-Woche.</span> Weniger Sätze, ~5–10 % leichteres Gewicht. Ziel ist Erholung, nicht PR.
+            </div>
+          </div>
+        )}
+        {!ctx.isDeload && penalty > 0 && (
+          <div className="rounded-2xl border border-danger-500/30 bg-danger-500/5 px-4 py-3 flex items-start gap-3">
+            <span className="text-danger-500 text-xl leading-none">!</span>
+            <div className="text-sm text-danger-500/90">
+              <span className="font-semibold">Heute reduziert trainieren.</span> Volumen gebremst wegen geringer Compliance. Regelmäßig trainieren, dann zieht die App wieder an.
+            </div>
+          </div>
+        )}
+        {showBlockVariationHint && (
+          <div className="rounded-2xl border border-accent-500/30 bg-accent-500/5 px-4 py-3 flex items-start gap-3">
+            <span className="text-accent-400 text-xl leading-none">◆</span>
+            <div className="text-sm text-accent-400 flex-1">
+              <span className="font-semibold">Neuer Block-Abschnitt.</span> Guter Moment für kontrollierte Übungsvariation.{' '}
+              <Link to="/library" className="underline">Alternativen in der Bibliothek →</Link>
+            </div>
+          </div>
+        )}
+
         {/* Main today card */}
         <div className="card p-6">
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <div className="label mb-1">Heutiges Training</div>
+            <div className="min-w-0">
+              <div className="label mb-1 flex items-center gap-2">
+                Heutiges Training
+                {isOverridden && <span className="chip-accent">geändert</span>}
+              </div>
               <h2 className="text-3xl font-semibold tracking-tight text-ink-100">
                 {WORKOUT_TYPE_LABEL[workoutType]}
               </h2>
               {template.description && <p className="text-sm text-ink-300 mt-1">{template.description}</p>}
+              {isOverridden && (
+                <button className="text-[11px] text-ink-400 mt-1 underline" onClick={() => setOverrideType(null)}>
+                  Zurück auf Plan ({WORKOUT_TYPE_LABEL[scheduledType]})
+                </button>
+              )}
             </div>
             <div className="w-10 h-10 rounded-full grid place-items-center bg-accent-500/15 text-accent-400">
               {isGym ? <DumbellIcon /> : isCardio ? <RunIcon /> : <MoonIcon />}
@@ -130,9 +189,15 @@ export default function Today() {
                         Workout starten
                       </button>
                       <label className="flex items-center justify-between text-sm text-ink-300 px-2">
-                        <span>Quick Mode (Zubehör streichen)</span>
+                        <span>Quick Mode (Nebenübung streichen)</span>
                         <Toggle checked={quickMode} onChange={setQuickMode} />
                       </label>
+                      {quickMode && quickModeCuts.length > 0 && (
+                        <div className="rounded-xl bg-white/5 px-3 py-2 text-[11px] text-ink-300">
+                          <div className="text-ink-400 uppercase tracking-wider text-[10px] mb-1">Quick Mode streicht</div>
+                          {quickModeCuts.join(' · ')}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -152,13 +217,26 @@ export default function Today() {
                 </div>
               )}
 
-              {!isRestDay && !activeSession && (
-                <button
-                  className="w-full mt-3 text-sm text-ink-400 hover:text-ink-200 py-2"
-                  onClick={onSkip}
-                >
-                  Heute überspringen
-                </button>
+              {!activeSession && (
+                <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-white/5">
+                  <button
+                    className="flex-1 text-sm text-ink-400 hover:text-ink-200 py-2"
+                    onClick={() => setOverrideOpen(true)}
+                  >
+                    Anders trainieren
+                  </button>
+                  {!isRestDay && (
+                    <>
+                      <span className="text-ink-600">·</span>
+                      <button
+                        className="flex-1 text-sm text-ink-400 hover:text-ink-200 py-2"
+                        onClick={onSkip}
+                      >
+                        Heute überspringen
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </>
           )}
@@ -201,6 +279,26 @@ export default function Today() {
           onStart={(rec) => { setRecoveryOpen(false); startGym(rec); }}
           onSkip={() => { setRecoveryOpen(false); startGym(undefined); }}
         />
+      </BottomSheet>
+
+      <BottomSheet open={overrideOpen} onClose={() => setOverrideOpen(false)} title="Was möchtest du heute machen?">
+        <p className="text-sm text-ink-300 mb-3">Geplant war: <span className="text-ink-100">{WORKOUT_TYPE_LABEL[scheduledType]}</span>. Du kannst heute etwas anderes trainieren — dein Block-Plan bleibt dabei erhalten.</p>
+        <div className="grid grid-cols-1 gap-2">
+          {(['gym_a','gym_b','gym_c','run_easy','run_long','mtb','mobility','rest'] as WorkoutType[]).map(t => (
+            <button
+              key={t}
+              onClick={() => { setOverrideType(t); setOverrideOpen(false); }}
+              className={`flex items-center justify-between rounded-xl px-4 py-3 text-left border transition ${
+                (overrideType ?? scheduledType) === t
+                  ? 'bg-accent-500/15 border-accent-500/30 text-accent-400'
+                  : 'bg-white/5 border-white/5 text-ink-200 hover:bg-white/10'
+              }`}
+            >
+              <span className="font-medium">{WORKOUT_TYPE_LABEL[t]}</span>
+              {t === scheduledType && <span className="chip">geplant</span>}
+            </button>
+          ))}
+        </div>
       </BottomSheet>
     </div>
   );

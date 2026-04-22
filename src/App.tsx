@@ -14,6 +14,7 @@ import Library from "./pages/Library";
 import CardioForm from "./pages/CardioForm";
 import ExerciseDetail from "./pages/ExerciseDetail";
 import DataTransfer from "./pages/DataTransfer";
+import WorkoutPreview from "./pages/WorkoutPreview";
 
 export default function App() {
   const init = useStore((s) => s.init);
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/settings/data" element={<DataTransfer />} />
           <Route path="/library" element={<Library />} />
           <Route path="/cardio/new" element={<CardioForm />} />
+          <Route path="/preview/:iso" element={<WorkoutPreview />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
